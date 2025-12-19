@@ -3,46 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>토스로 정산하기</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        .btn {
-            background-color: #3182f6; color: white; padding: 15px 30px;
-            text-decoration: none; border-radius: 10px; font-size: 18px; display: inline-block;
-        }
-    </style>
+    <title>정산하기</title>
     <script>
         window.onload = function() {
-            // 1. URL에서 파라미터(은행, 계좌, 금액) 추출
             const params = new URLSearchParams(window.location.search);
+            const app = params.get('app'); // toss 인지 kakao 인지 확인
             const bank = params.get('bank');
             const account = params.get('acc');
             const amount = params.get('amt');
 
-            // 2. 정보가 다 있으면 토스 앱 실행 (납치 시작 🛸)
-            if (bank && account && amount) {
-                // 토스 공식 송금 스킴
+            // 1. 토스 선택 시: 묻지도 따지지도 않고 바로 실행 (UX 최강)
+            if (app === 'toss') {
                 const tossScheme = `supertoss://send?bank=${bank}&accountNo=${account}&amount=${amount}&origin=link`;
-                
-                // 앱 실행 시도
                 window.location.href = tossScheme;
-
-                // 3. 앱이 안 켜질 때(PC거나 미설치)를 대비한 안내 문구
-                setTimeout(() => {
-                    document.getElementById('status').innerText = "앱이 자동으로 열리지 않나요?";
-                    document.getElementById('manual-link').href = tossScheme;
-                    document.getElementById('manual-link').style.display = 'inline-block';
-                }, 1500);
-            } else {
-                document.getElementById('status').innerText = "계좌 정보가 올바르지 않습니다.";
+                
+                // PC거나 앱 없을 때만 문구 표시
+                document.body.innerHTML = "<h3>토스 앱을 실행 중입니다...🚀</h3>";
+            } 
+            
+            // 2. 카카오페이 선택 시: 계좌 복사 버튼 보여주기
+            else if (app === 'kakao') {
+                // UI 그리기 (계좌 복사 기능 때문)
+                document.getElementById('container').style.display = 'block';
+                document.getElementById('info').innerText = bank + " " + account + "\n" + Number(amount).toLocaleString() + "원";
+            }
+            // 3. 그냥 들어왔을 때 (예외 처리)
+            else {
+                 document.body.innerHTML = "<h3>잘못된 접근입니다.</h3>";
             }
         }
+
+        function copyAndGo() {
+            const params = new URLSearchParams(window.location.search);
+            const text = params.get('bank') + " " + params.get('acc');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert("계좌가 복사되었습니다! \n카카오페이(또는 뱅킹앱)를 실행해서 붙여넣으세요.");
+                window.location.href = 'kakaotalk://launch'; // 카카오톡 실행
+            }).catch(() => {
+                prompt("직접 복사해주세요:", text); // 보안상 막히면 직접 복사
+            });
+        }
     </script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #F2F4F6; margin: 0; }
+        .btn { background-color: #FFEB00; color: #3C1E1E; padding: 15px 30px; border-radius: 10px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; width: 80%; max-width: 300px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #container { display: none; background: white; margin: 20px auto; padding: 40px 20px; border-radius: 20px; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    </style>
 </head>
 <body>
-    <img src="https://static.toss.im/icons/png/4x/icon-toss-logo.png" width="80">
-    <h2 id="status">토스 앱을 여는 중입니다...</h2>
-    <p>잠시만 기다려주세요.</p>
-    <a id="manual-link" href="#" class="btn" style="display:none;">직접 눌러서 송금하기</a>
+    <div id="container">
+        <h3 style="margin-top:0;">카카오페이로 보내기</h3>
+        <p style="color:#8B95A1; font-size:14px;">아래 버튼을 누르면 계좌가 복사되고<br>카카오톡이 실행됩니다.</p>
+        <div id="info" style="font-weight:bold; color:#3182F6; font-size: 18px; margin: 20px 0; padding: 15px; background: #F9FAFB; border-radius: 10px;"></div>
+        <button class="btn" onclick="copyAndGo()">계좌 복사하고 실행하기 👉</button>
+    </div>
 </body>
 </html>
