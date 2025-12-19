@@ -1,79 +1,44 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>정산하기</title>
+    <title>연결 중...</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; text-align: center; padding: 20px; background-color: #f2f4f6; }
-        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 50px; }
-        .amount { font-size: 24px; font-weight: bold; color: #333; margin: 10px 0; }
-        .account { color: #666; font-size: 14px; margin-bottom: 30px; background: #eee; padding: 10px; border-radius: 8px; display: inline-block;}
-        
-        .btn { width: 100%; padding: 15px 0; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; display: block; text-decoration: none; margin-bottom: 10px; }
-        .btn-toss { background-color: #3182f6; color: white; }
-        .btn-kakao { background-color: #ffeb00; color: #3c1e1e; }
+        /* 카톡 브라우저 배경색과 통일해서 위질감 제거 */
+        body { background-color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3182f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3 style="margin:0;">정산 금액</h3>
-        <div id="amount-display" class="amount">0원</div>
-        <div id="account-display" class="account">계좌 정보 로딩중</div>
-
-        <a id="toss-btn" href="#" class="btn btn-toss">토스로 바로 송금 ⚡</a>
-        
-        <div onclick="runKakaoPay()" class="btn btn-kakao">카카오페이로 송금 🟡</div>
-    </div>
-
+    <div class="loader"></div>
     <script>
-        const params = new URLSearchParams(window.location.search);
-        const bank = params.get('bank');
-        const account = params.get('acc');
-        const amount = params.get('amt');
-        const type = params.get('type');
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const bank = params.get('bank');
+            const acc = params.get('acc');
+            const amt = params.get('amt');
+            const type = params.get('type'); // 'toss' 또는 'kakao'
 
-        // 화면 표시
-        document.getElementById('amount-display').innerText = parseInt(amount || 0).toLocaleString() + "원";
-        document.getElementById('account-display').innerText = (bank || "") + " " + (account || "");
-
-        // 토스 스킴 설정
-        const tossScheme = `supertoss://send?bank=${bank}&accountNo=${account}&amount=${amount}&origin=link`;
-        document.getElementById('toss-btn').href = tossScheme;
-
-        // [핵심 로직] 카카오페이 실행 함수
-        function runKakaoPay() {
-            const textToCopy = bank + " " + account;
+            if (type === 'toss') {
+                // 토스 앱 즉시 실행
+                window.location.href = `supertoss://send?bank=${bank}&accountNo=${acc}&amount=${amt}&origin=link`;
+            } else {
+                // 카카오페이는 계좌번호 복사 후 앱 실행 (기술적 최선)
+                const text = bank + " " + acc;
+                navigator.clipboard.writeText(text).then(() => {
+                    alert("계좌번호가 복사되었습니다.\n앱이 열리면 [붙여넣기] 해주세요!");
+                    window.location.href = "kakaopay://";
+                }).catch(() => {
+                    prompt("아래 계좌를 복사 후 확인을 누르세요:", text);
+                    window.location.href = "kakaopay://";
+                });
+            }
             
-            // 1. 계좌번호 클립보드 복사 시도
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("계좌번호가 복사되었습니다! (" + textToCopy + ")\n앱이 열리면 붙여넣으세요.");
-                launchKakaoApp();
-            }).catch(err => {
-                // 보안상 복사 실패하면 알림창이라도 띄워서 보여줌
-                prompt("이 계좌를 복사하세요:", textToCopy);
-                launchKakaoApp();
-            });
-        }
-
-        function launchKakaoApp() {
-            // 카카오페이 앱 실행 시도 -> 없으면 카카오톡 실행
-            // location.href는 하나만 실행되므로 시간차 공격 사용
-            
-            setTimeout(function() {
-                window.location.href = "kakaopay://"; // 카카오페이 앱 실행 스킴
-            }, 100);
-
-            setTimeout(function() {
-                 window.location.href = "kakaotalk://"; // 카카오페이 없으면 카톡이라도 켜라
-            }, 500);
-        }
-        
-        // 팁: 링크 뒤에 &type=copy 가 붙어서 들어왔으면 바로 카카오 로직 실행
-        if (type === 'copy') {
-            // 페이지 로딩 직후 복사는 브라우저 정책상 막힐 수 있어서 버튼 클릭 유도가 안전함
-            // 하지만 시도는 해볼 수 있음
-        }
+            // 앱 실행 후 웹 브라우저 창을 닫으려는 시도 (일부 환경에서 작동)
+            setTimeout(() => { window.close(); }, 2000);
+        };
     </script>
 </body>
 </html>
