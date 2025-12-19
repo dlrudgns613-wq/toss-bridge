@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토스로 정산하기</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .btn {
+            background-color: #3182f6; color: white; padding: 15px 30px;
+            text-decoration: none; border-radius: 10px; font-size: 18px; display: inline-block;
+        }
+    </style>
+    <script>
+        window.onload = function() {
+            // 1. URL에서 파라미터(은행, 계좌, 금액) 추출
+            const params = new URLSearchParams(window.location.search);
+            const bank = params.get('bank');
+            const account = params.get('acc');
+            const amount = params.get('amt');
+
+            // 2. 정보가 다 있으면 토스 앱 실행 (납치 시작 🛸)
+            if (bank && account && amount) {
+                // 토스 공식 송금 스킴
+                const tossScheme = `supertoss://send?bank=${bank}&accountNo=${account}&amount=${amount}&origin=link`;
+                
+                // 앱 실행 시도
+                window.location.href = tossScheme;
+
+                // 3. 앱이 안 켜질 때(PC거나 미설치)를 대비한 안내 문구
+                setTimeout(() => {
+                    document.getElementById('status').innerText = "앱이 자동으로 열리지 않나요?";
+                    document.getElementById('manual-link').href = tossScheme;
+                    document.getElementById('manual-link').style.display = 'inline-block';
+                }, 1500);
+            } else {
+                document.getElementById('status').innerText = "계좌 정보가 올바르지 않습니다.";
+            }
+        }
+    </script>
+</head>
+<body>
+    <img src="https://static.toss.im/icons/png/4x/icon-toss-logo.png" width="80">
+    <h2 id="status">토스 앱을 여는 중입니다...</h2>
+    <p>잠시만 기다려주세요.</p>
+    <a id="manual-link" href="#" class="btn" style="display:none;">직접 눌러서 송금하기</a>
+</body>
+</html>
