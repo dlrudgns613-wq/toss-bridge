@@ -15,7 +15,6 @@
 
         .section-title { font-size: 14px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
-        /* 그룹 리스트 스타일 */
         .member-group { padding: 15px 0; border-bottom: 1px solid #f5f5f5; }
         .group-names { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 5px; line-height: 1.4; }
         .group-amt-row { display: flex; justify-content: space-between; align-items: center; }
@@ -65,6 +64,34 @@
     const params = new URLSearchParams(window.location.search);
     const docId = params.get('id');
 
+    // ★ [핵심] 은행 이름 -> 토스 은행 코드 변환기
+    const bankCodeMap = {
+        "NH농협": "011", "농협": "011",
+        "KB국민": "004", "국민": "004",
+        "신한": "088", "제주": "035",
+        "우리": "020", "기업": "003", "IBK기업": "003",
+        "하나": "081", "KEB하나": "081",
+        "카카오뱅크": "090", "카뱅": "090",
+        "토스뱅크": "092", "토스": "092",
+        "케이뱅크": "089", 
+        "SC제일": "023", "제일": "023",
+        "부산": "032", "대구": "031", "iM뱅크": "031",
+        "광주": "034", "전북": "037", "경남": "039",
+        "우체국": "071", "수협": "007", "새마을": "045", "신협": "048",
+        "씨티": "027", "산업": "002", "산림": "064", "저축은행": "050"
+    };
+
+    function getBankCode(name) {
+        if (!name) return "";
+        // "NH농협은행" 처럼 긴 이름도 처리하기 위해 포함 여부 확인
+        for (const key in bankCodeMap) {
+            if (name.includes(key)) {
+                return bankCodeMap[key];
+            }
+        }
+        return ""; // 못 찾으면 빈 값 (토스가 알아서 물어보게)
+    }
+
     if (docId) {
         db.collection("receipts").doc(docId).get().then((doc) => {
             if (doc.exists) {
@@ -87,7 +114,6 @@
             document.getElementById('bank-text').innerText = data.bank;
         }
 
-        // ★ [핵심 1] 같은 금액끼리 묶기 로직 (Grouping)
         const groups = {};
         data.members.forEach(member => {
             if (member.amount === 0) return;
@@ -95,24 +121,24 @@
             groups[member.amount].push(member.name);
         });
 
-        // 금액 큰 순서대로 키 정렬
         const sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
 
         const container = document.getElementById('list-container');
         container.innerHTML = ""; 
 
-        // ★ [핵심 2] 묶인 그룹별로 화면에 그리기
         sortedAmounts.forEach(amount => {
-            const names = groups[amount].join(", "); // 이름들을 콤마로 연결 (김철수, 이영희)
+            const names = groups[amount].join(", "); 
             
             const div = document.createElement('div');
             div.className = 'member-group';
             
-            // ★ [핵심 3] 토스 송금 링크에 계좌 정보 꽉 채워 넣기
-            // 은행명과 계좌번호가 없으면 그냥 금액만 보냄
+            // ★ [핵심] 은행 코드로 변환해서 토스에 전달
             const bankName = data.bankName || "";
+            const bankCode = getBankCode(bankName); // 한글 이름 -> 숫자 코드 변환
             const accountNo = data.accountNumber || "";
-            const tossUrl = `supertoss://send?bank=${bankName}&accountNo=${accountNo}&amount=${amount}&msg=${data.title}`;
+            
+            // bank 파라미터에는 이제 '이름' 대신 '코드'가 들어갑니다!
+            const tossUrl = `supertoss://send?bank=${bankCode}&accountNo=${accountNo}&amount=${amount}&msg=${data.title}`;
 
             div.innerHTML = `
                 <div class="group-names">${names}</div>
