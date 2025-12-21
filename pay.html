@@ -15,14 +15,14 @@
 
         .section-title { font-size: 14px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
-        /* 멤버 리스트: 무조건 한 명씩 출력 */
-        .member-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer; }
-        .member-row:active { background-color: #f0f0f0; }
-        .member-name { font-size: 16px; font-weight: 500; color: #333; }
-        .member-amt { font-size: 16px; font-weight: bold; color: #3182f6; display: flex; align-items: center; }
-        .arrow { font-size: 12px; margin-left: 5px; color: #ccc; }
+        /* 그룹 리스트 스타일 */
+        .member-group { padding: 15px 0; border-bottom: 1px solid #f5f5f5; }
+        .group-names { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 5px; line-height: 1.4; }
+        .group-amt-row { display: flex; justify-content: space-between; align-items: center; }
+        .group-amt { font-size: 16px; font-weight: bold; color: #3182f6; }
+        .toss-btn { font-size: 13px; color: #ffffff; background-color: #3182f6; padding: 6px 12px; border-radius: 8px; text-decoration: none; display: inline-block; }
+        .toss-btn:active { background-color: #266ce0; }
 
-        /* 상세 내역 스타일 */
         .details-container { margin-top: 30px; background: #fafafa; padding: 15px; border-radius: 12px; }
         .round-title { font-weight: bold; font-size: 15px; color: #333; margin-top: 15px; margin-bottom: 5px; }
         .round-title:first-child { margin-top: 0; }
@@ -43,7 +43,7 @@
         <div id="bank-text"></div>
     </div>
 
-    <div class="section-title">멤버별 정산 금액 (이름을 누르면 토스 송금)</div>
+    <div class="section-title">멤버별 정산 금액</div>
     <div id="list-container">
         <div class="loading">내역을 불러오고 있습니다...</div>
     </div>
@@ -81,44 +81,50 @@
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
 
-        // [1] 계좌 정보 표시
+        // 계좌 정보 표시
         if (data.bank && data.bank.trim() !== "") {
             document.getElementById('bank-area').style.display = 'block';
             document.getElementById('bank-text').innerText = data.bank;
-        } else {
-            document.getElementById('bank-area').style.display = 'block';
-            document.getElementById('bank-text').innerText = "등록된 계좌 정보가 없습니다.";
         }
 
-        // [2] 멤버 리스트 (한 명씩 전부 출력 - "외 N명" 없음)
+        // ★ [핵심 1] 같은 금액끼리 묶기 로직 (Grouping)
+        const groups = {};
+        data.members.forEach(member => {
+            if (member.amount === 0) return;
+            if (!groups[member.amount]) groups[member.amount] = [];
+            groups[member.amount].push(member.name);
+        });
+
+        // 금액 큰 순서대로 키 정렬
+        const sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
+
         const container = document.getElementById('list-container');
         container.innerHTML = ""; 
-        
-        // 금액 큰 순서대로 정렬해서 보여주기
-        data.members.sort((a, b) => b.amount - a.amount);
 
-        data.members.forEach(member => {
-            if(member.amount === 0) return; // 0원인 사람은 생략 (필요하면 주석 해제)
-
-            const div = document.createElement('div');
-            div.className = 'member-row';
-            div.innerHTML = `
-                <span class="member-name">${member.name}</span>
-                <span class="member-amt">
-                    ${Number(member.amount).toLocaleString()}원 
-                    <span class="arrow">></span>
-                </span>
-            `;
+        // ★ [핵심 2] 묶인 그룹별로 화면에 그리기
+        sortedAmounts.forEach(amount => {
+            const names = groups[amount].join(", "); // 이름들을 콤마로 연결 (김철수, 이영희)
             
-            // 토스 송금 링크
-            div.onclick = function() {
-                const tossUrl = `supertoss://send?amount=${member.amount}&msg=${data.title}`;
-                location.href = tossUrl;
-            };
+            const div = document.createElement('div');
+            div.className = 'member-group';
+            
+            // ★ [핵심 3] 토스 송금 링크에 계좌 정보 꽉 채워 넣기
+            // 은행명과 계좌번호가 없으면 그냥 금액만 보냄
+            const bankName = data.bankName || "";
+            const accountNo = data.accountNumber || "";
+            const tossUrl = `supertoss://send?bank=${bankName}&accountNo=${accountNo}&amount=${amount}&msg=${data.title}`;
+
+            div.innerHTML = `
+                <div class="group-names">${names}</div>
+                <div class="group-amt-row">
+                    <span class="group-amt">각 ${Number(amount).toLocaleString()}원</span>
+                    <a href="${tossUrl}" class="toss-btn">송금 ></a>
+                </div>
+            `;
             container.appendChild(div);
         });
 
-        // [3] 상세 내역 표시 (영수증처럼)
+        // 상세 내역 표시
         if (data.details && data.details.length > 0) {
             document.getElementById('details-area').style.display = 'block';
             const detailsList = document.getElementById('details-list');
@@ -126,15 +132,11 @@
             data.details.forEach(round => {
                 const roundBox = document.createElement('div');
                 roundBox.innerHTML = `<div class="round-title">📍 ${round.rName}</div>`;
-                
                 if(round.items) {
                     round.items.forEach(item => {
                         const row = document.createElement('div');
                         row.className = 'item-row';
-                        row.innerHTML = `
-                            <span>- ${item.iName}</span>
-                            <span>${Number(item.price).toLocaleString()}</span>
-                        `;
+                        row.innerHTML = `<span>- ${item.iName}</span><span>${Number(item.price).toLocaleString()}</span>`;
                         roundBox.appendChild(row);
                     });
                 }
