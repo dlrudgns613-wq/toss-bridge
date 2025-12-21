@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>Smart Split 정산</title>
     <style>
         body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-color: #f2f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
         .receipt { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         h2 { margin: 0; color: #333; font-size: 20px; text-align: center; }
-        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; margin: 10px 0 30px 0; text-align: center; }
+        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; margin: 10px 0 10px 0; text-align: center; }
         
         .bank-box { background: #f9f9f9; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; color: #555; font-weight: 500; font-size: 15px; }
         .bank-box span { display: block; font-size: 13px; color: #888; margin-bottom: 5px; }
+        /* 디버그용 텍스트 (작게 표시) */
+        .debug-info { font-size: 11px; color: #bbb; text-align: center; margin-bottom: 20px; }
+
         .section-title { font-size: 14px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .member-group { padding: 15px 0; border-bottom: 1px solid #f5f5f5; }
         .group-names { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 5px; line-height: 1.4; }
@@ -31,6 +37,9 @@
 <div class="receipt">
     <h2 id="receipt-title">로딩 중...</h2>
     <div class="total-price" id="receipt-total"></div>
+    
+    <div id="debug-area" class="debug-info"></div>
+
     <div id="bank-area" class="bank-box" style="display:none;">
         <span>입금 계좌</span>
         <div id="bank-text"></div>
@@ -43,7 +52,7 @@
         <div class="section-title" style="border:none; padding:0; margin-bottom:10px;">🧾 상세 지출 내역</div>
         <div id="details-list"></div>
     </div>
-    <div class="footer">Smart Split</div>
+    <div class="footer">Smart Split (v2.1)</div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -55,44 +64,37 @@
     const params = new URLSearchParams(window.location.search);
     const docId = params.get('id');
 
-    // 1. 만능 은행 코드 변환기
+    // 은행 코드 찾기 (더 강력하게!)
     function findBankCode(inputName) {
         if (!inputName) return "";
-        const cleanName = inputName.replace(/\s+/g, '').replace(/은행/g, '').toLowerCase();
+        const s = inputName.replace(/\s+/g, '').replace(/은행/g, '').toLowerCase();
         
-        if (cleanName.includes('농협') || cleanName.includes('nh')) return "011";
-        if (cleanName.includes('국민') || cleanName.includes('kb')) return "004";
-        if (cleanName.includes('카카오') || cleanName.includes('kakao') || cleanName.includes('카뱅')) return "090";
-        if (cleanName.includes('토스') || cleanName.includes('toss')) return "092";
-        if (cleanName.includes('신한') || cleanName.includes('제주')) return "088";
-        if (cleanName.includes('우리')) return "020";
-        if (cleanName.includes('기업') || cleanName.includes('ibk')) return "003";
-        if (cleanName.includes('하나') || cleanName.includes('keb')) return "081";
-        if (cleanName.includes('새마을') || cleanName.includes('kfcc')) return "045";
-        if (cleanName.includes('부산')) return "032";
-        if (cleanName.includes('대구') || cleanName.includes('im')) return "031";
-        if (cleanName.includes('케이') || cleanName.includes('kbank')) return "089";
-        if (cleanName.includes('신협')) return "048";
-        if (cleanName.includes('우체국')) return "071";
-        if (cleanName.includes('sc') || cleanName.includes('제일')) return "023";
-        if (cleanName.includes('광주')) return "034";
-        if (cleanName.includes('전북')) return "037";
-        if (cleanName.includes('수협')) return "007";
-        if (cleanName.includes('산업')) return "002";
-        
+        if (s.includes('농협') || s.includes('nh')) return "011";
+        if (s.includes('국민') || s.includes('kb')) return "004";
+        if (s.includes('카카오') || s.includes('kakao') || s.includes('카뱅')) return "090";
+        if (s.includes('토스') || s.includes('toss')) return "092";
+        if (s.includes('신한') || s.includes('제주')) return "088";
+        if (s.includes('우리')) return "020";
+        if (s.includes('기업') || s.includes('ibk')) return "003";
+        if (s.includes('하나') || s.includes('keb')) return "081";
+        if (s.includes('새마을') || s.includes('kfcc')) return "045";
+        if (s.includes('부산')) return "032";
+        if (s.includes('대구') || s.includes('im')) return "031";
+        if (s.includes('케이') || s.includes('kbank')) return "089";
+        if (s.includes('신협')) return "048";
+        if (s.includes('우체국')) return "071";
+        if (s.includes('sc') || s.includes('제일')) return "023";
+        if (s.includes('광주')) return "034";
+        if (s.includes('전북')) return "037";
+        if (s.includes('수협')) return "007";
+        if (s.includes('산업')) return "002";
         return "";
     }
 
-    // ★ [핵심 추가] 전체 텍스트에서 계좌번호만 쏙 뽑아내는 함수
     function extractAccountNumber(fullText) {
         if (!fullText) return "";
-        // 숫자와 하이픈(-)이 섞여서 10자리 이상 연속되는 것을 찾음
         const match = fullText.match(/[0-9-]{10,}/);
-        if (match) {
-            // 찾았으면 하이픈 제거하고 숫자만 반환
-            return match[0].replace(/-/g, '');
-        }
-        return "";
+        return match ? match[0].replace(/-/g, '') : "";
     }
 
     if (docId) {
@@ -111,13 +113,28 @@
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
 
-        let fullBankString = ""; // 전체 은행 정보 문자열 (추출용)
+        let fullBankString = ""; 
         if (data.bank && data.bank.trim() !== "") {
             document.getElementById('bank-area').style.display = 'block';
             document.getElementById('bank-text').innerText = data.bank;
             fullBankString = data.bank;
         }
 
+        // ★ [진단 로직] 내가 뭘 인식했는지 화면에 표시
+        let finalAccountNo = "";
+        if (data.accountNumber && data.accountNumber.trim() !== "") {
+            finalAccountNo = data.accountNumber.replace(/[^0-9]/g, '');
+        } else {
+            finalAccountNo = extractAccountNumber(fullBankString);
+        }
+
+        let finalBankCode = findBankCode(data.bankName || fullBankString);
+        
+        // 디버깅 정보 출력 (사용자가 볼 수 있게)
+        const debugArea = document.getElementById('debug-area');
+        debugArea.innerText = `인식된 은행: ${finalBankCode || "실패"} / 계좌: ${finalAccountNo || "실패"}`;
+
+        // 그룹화 로직
         const groups = {};
         data.members.forEach(member => {
             if (member.amount === 0) return;
@@ -129,32 +146,13 @@
         const container = document.getElementById('list-container');
         container.innerHTML = ""; 
 
-        // ★ [핵심] 계좌번호 결정 로직 강화
-        // 1순위: 따로 저장된 계좌번호가 있으면 쓴다.
-        // 2순위: 없으면 전체 텍스트(fullBankString)에서 추출한다.
-        let finalAccountNo = "";
-        if (data.accountNumber && data.accountNumber.trim() !== "") {
-            finalAccountNo = data.accountNumber.replace(/[^0-9]/g, '');
-        } else {
-            finalAccountNo = extractAccountNumber(fullBankString);
-        }
-
-        // 은행 코드 결정
-        let finalBankCode = findBankCode(data.bankName || fullBankString);
-
         sortedAmounts.forEach(amount => {
             const memberNames = groups[amount];
             const namesText = memberNames.join(", ");
-            
-            let priceLabel = "";
-            if (memberNames.length > 1) {
-                priceLabel = "각 " + Number(amount).toLocaleString() + "원";
-            } else {
-                priceLabel = Number(amount).toLocaleString() + "원";
-            }
+            let priceLabel = memberNames.length > 1 ? "각 " + Number(amount).toLocaleString() + "원" : Number(amount).toLocaleString() + "원";
 
-            // 토스 링크 생성 (이제 계좌번호가 비어있을 확률이 확 줄어듭니다)
-            const tossUrl = `supertoss://send?bank=${finalBankCode}&accountNo=${finalAccountNo}&amount=${amount}&msg=${data.title}`;
+            // 토스 링크 (파라미터 확실하게)
+            const tossUrl = `supertoss://send?bank=${finalBankCode}&accountNo=${finalAccountNo}&amount=${amount}&msg=${data.title}&origin=link`;
 
             const div = document.createElement('div');
             div.className = 'member-group';
@@ -168,6 +166,7 @@
             container.appendChild(div);
         });
 
+        // 상세 내역
         if (data.details && data.details.length > 0) {
             document.getElementById('details-area').style.display = 'block';
             const detailsList = document.getElementById('details-list');
