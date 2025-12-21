@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <script>
+    // 에러가 나면 화면에 경고창으로 띄워라!
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+        alert("🚨 에러 발생!\n" + msg + "\n줄 번호: " + lineNo);
+        return false;
+    };
+</script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Split 정산</title>
