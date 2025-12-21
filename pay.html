@@ -6,33 +6,59 @@
     <title>Smart Split 정산</title>
     <style>
         body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-color: #f2f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .receipt { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; }
-        h2 { margin: 0 0 5px 0; color: #333; font-size: 18px; }
-        .total-price { font-size: 32px; font-weight: bold; color: #3182f6; margin-bottom: 30px; }
-        .list-container { text-align: left; border-top: 1px solid #eee; padding-top: 20px; }
-        .member-btn { display: flex; justify-content: space-between; align-items: center; padding: 15px 10px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.2s; border-radius: 12px; }
-        .member-btn:active { background-color: #f0f0f0; }
+        .receipt { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        h2 { margin: 0; color: #333; font-size: 20px; text-align: center; }
+        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; margin: 10px 0 30px 0; text-align: center; }
+        
+        .bank-box { background: #f9f9f9; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; color: #555; font-weight: 500; font-size: 15px; }
+        .bank-box span { display: block; font-size: 13px; color: #888; margin-bottom: 5px; }
+
+        .section-title { font-size: 14px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        
+        /* 멤버 리스트: 무조건 한 명씩 출력 */
+        .member-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer; }
+        .member-row:active { background-color: #f0f0f0; }
         .member-name { font-size: 16px; font-weight: 500; color: #333; }
-        .member-amt { font-size: 16px; font-weight: bold; color: #3182f6; }
-        .footer { margin-top: 30px; font-size: 12px; color: #888; }
-        .loading { color: #888; font-size: 14px; margin-top: 50px; }
+        .member-amt { font-size: 16px; font-weight: bold; color: #3182f6; display: flex; align-items: center; }
+        .arrow { font-size: 12px; margin-left: 5px; color: #ccc; }
+
+        /* 상세 내역 스타일 */
+        .details-container { margin-top: 30px; background: #fafafa; padding: 15px; border-radius: 12px; }
+        .round-title { font-weight: bold; font-size: 15px; color: #333; margin-top: 15px; margin-bottom: 5px; }
+        .round-title:first-child { margin-top: 0; }
+        .item-row { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 3px; }
+
+        .footer { margin-top: 30px; font-size: 12px; color: #aaa; text-align: center; }
+        .loading { text-align: center; color: #888; margin-top: 50px; }
     </style>
 </head>
 <body>
 
 <div class="receipt">
-    <h2 id="receipt-title">영수증 불러오는 중...</h2>
+    <h2 id="receipt-title">로딩 중...</h2>
     <div class="total-price" id="receipt-total"></div>
-    <div id="list-container" class="list-container">
-        <div class="loading">데이터를 안전하게 가져오고 있습니다...<br>(잠시만 기다려주세요)</div>
+
+    <div id="bank-area" class="bank-box" style="display:none;">
+        <span>입금 계좌</span>
+        <div id="bank-text"></div>
     </div>
-    <div class="footer">📢 Smart Split 앱 다운로드 (광고)</div>
+
+    <div class="section-title">멤버별 정산 금액 (이름을 누르면 토스 송금)</div>
+    <div id="list-container">
+        <div class="loading">내역을 불러오고 있습니다...</div>
+    </div>
+
+    <div id="details-area" class="details-container" style="display:none;">
+        <div class="section-title" style="border:none; padding:0; margin-bottom:10px;">🧾 상세 지출 내역</div>
+        <div id="details-list"></div>
+    </div>
+
+    <div class="footer">Smart Split</div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<script src="./js/firebase-config.js?v=2.0"></script>
+<script src="./js/firebase-config.js"></script>
 
 <script>
     const db = initFirebase(); 
@@ -42,99 +68,79 @@
     if (docId) {
         db.collection("receipts").doc(docId).get().then((doc) => {
             if (doc.exists) {
-                const data = doc.data();
-                renderReceipt(data);
+                renderReceipt(doc.data());
             } else {
-                showError("존재하지 않거나 삭제된 영수증입니다.");
+                alert("삭제된 영수증입니다.");
             }
-        }).catch((error) => {
-            console.error("Error:", error);
-            showError("데이터를 불러오지 못했습니다.");
         });
     } else {
-        showError("잘못된 접근입니다. (ID 없음)");
+        document.getElementById('receipt-title').innerText = "잘못된 접근";
     }
 
     function renderReceipt(data) {
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
 
+        // [1] 계좌 정보 표시
+        if (data.bank && data.bank.trim() !== "") {
+            document.getElementById('bank-area').style.display = 'block';
+            document.getElementById('bank-text').innerText = data.bank;
+        } else {
+            document.getElementById('bank-area').style.display = 'block';
+            document.getElementById('bank-text').innerText = "등록된 계좌 정보가 없습니다.";
+        }
+
+        // [2] 멤버 리스트 (한 명씩 전부 출력 - "외 N명" 없음)
         const container = document.getElementById('list-container');
         container.innerHTML = ""; 
-
-        // 1. 상세 내역 표시 (새로 추가된 기능)
-        if (data.details) {
-            const detailBox = document.createElement('div');
-            detailBox.style.cssText = "background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:20px; font-size:14px; color:#555; white-space: pre-wrap; line-height: 1.6;";
-            detailBox.innerText = "[상세 내역]\n" + data.details;
-            container.appendChild(detailBox);
-        }
-
-        // 2. 멤버 그룹화 로직 (금액 같은 사람끼리 묶기)
-        const grouped = {};
-        data.members.forEach(m => {
-            const amt = m.amount;
-            if (!grouped[amt]) grouped[amt] = [];
-            grouped[amt].push(m.name);
-        });
-
-        // 힌트 메시지 (계좌 정보 유무에 따라 다르게 표시)
-        const hint = document.createElement('div');
-        hint.style.cssText = "font-size:13px; color:#666; margin-bottom:10px; text-align:center;";
         
-        if(data.bank && data.account) {
-            hint.innerText = `👇 내 이름을 누르면 [${data.bank}]로 자동 입력됩니다`;
-        } else {
-            hint.innerText = "👇 내 이름을 누르면 토스로 연결됩니다 (계좌 정보 없음)";
-        }
-        container.appendChild(hint);
+        // 금액 큰 순서대로 정렬해서 보여주기
+        data.members.sort((a, b) => b.amount - a.amount);
 
-        // 3. 그룹별 버튼 생성
-        for (const [amount, names] of Object.entries(grouped)) {
-            const btn = document.createElement('div');
-            btn.className = 'member-btn';
-            
-            // 이름 표시 (너무 길면 '외 N명' 처리)
-            const nameStr = names.join(", ");
-            const displayAmt = Number(amount).toLocaleString();
+        data.members.forEach(member => {
+            if(member.amount === 0) return; // 0원인 사람은 생략 (필요하면 주석 해제)
 
-            let leftText = nameStr;
-            if (names.length > 3) {
-                leftText = `${names[0]}, ${names[1]} 외 ${names.length - 2}명`;
-            }
-
-            let rightText = "";
-            if (names.length > 1) {
-                rightText = `각 ${displayAmt}원 >`;
-            } else {
-                rightText = `${displayAmt}원 >`;
-            }
-
-            btn.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <span class="member-name" style="word-break: break-all;">${leftText}</span>
-                </div>
-                <span class="member-amt" style="min-width: 90px; text-align:right;">${rightText}</span>
+            const div = document.createElement('div');
+            div.className = 'member-row';
+            div.innerHTML = `
+                <span class="member-name">${member.name}</span>
+                <span class="member-amt">
+                    ${Number(member.amount).toLocaleString()}원 
+                    <span class="arrow">></span>
+                </span>
             `;
             
-            // 클릭 이벤트: 토스 송금 (계좌 정보 포함)
-            btn.onclick = function() {
-                let tossUrl = `supertoss://send?amount=${amount}&msg=${data.title}`;
-                
-                // 계좌 정보가 있으면 URL에 추가
-                if (data.bank && data.account) {
-                    tossUrl += `&bank=${data.bank}&accountNo=${data.account}`;
-                }
-                
+            // 토스 송금 링크
+            div.onclick = function() {
+                const tossUrl = `supertoss://send?amount=${member.amount}&msg=${data.title}`;
                 location.href = tossUrl;
             };
-            container.appendChild(btn);
-        }
-    }
+            container.appendChild(div);
+        });
 
-    function showError(msg) {
-        document.getElementById('receipt-title').innerText = "오류";
-        document.getElementById('list-container').innerHTML = `<div class="loading" style="color:red;">${msg}</div>`;
+        // [3] 상세 내역 표시 (영수증처럼)
+        if (data.details && data.details.length > 0) {
+            document.getElementById('details-area').style.display = 'block';
+            const detailsList = document.getElementById('details-list');
+            
+            data.details.forEach(round => {
+                const roundBox = document.createElement('div');
+                roundBox.innerHTML = `<div class="round-title">📍 ${round.rName}</div>`;
+                
+                if(round.items) {
+                    round.items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'item-row';
+                        row.innerHTML = `
+                            <span>- ${item.iName}</span>
+                            <span>${Number(item.price).toLocaleString()}</span>
+                        `;
+                        roundBox.appendChild(row);
+                    });
+                }
+                detailsList.appendChild(roundBox);
+            });
+        }
     }
 </script>
 
