@@ -32,27 +32,18 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+<script src="./js/firebase-config.js"></script>
+
 <script>
-    // 1. 파이어베이스 설정 (아까 복사한 내용을 여기에 붙여넣으세요!)
-    const firebaseConfig = {
-        apiKey: "dddddd",      // <-- 여기에 개발자님 키를 넣어야 합니다!
-        authDomain: "smartsplit-....firebaseapp.com",
-        projectId: "smartsplit-...",
-        storageBucket: "...",
-        messagingSenderId: "...",
-        appId: "..."
-    };
+    // 3. 설정 파일(firebase-config.js)에 있는 함수로 DB 시작!
+    const db = initFirebase(); 
 
-    // 2. 파이어베이스 시작
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    // 3. URL에서 '열쇠(ID)' 꺼내기
+    // 4. URL에서 '열쇠(ID)' 꺼내기
     const params = new URLSearchParams(window.location.search);
     const docId = params.get('id');
 
     if (docId) {
-        // 4. 창고에서 데이터 꺼내오기
+        // 5. 창고에서 데이터 꺼내오기
         db.collection("receipts").doc(docId).get().then((doc) => {
             if (doc.exists) {
                 const data = doc.data();
@@ -68,7 +59,7 @@
         showError("잘못된 접근입니다. (ID 없음)");
     }
 
-    // 5. 화면에 그리기
+    // 6. 화면에 그리기 함수
     function renderReceipt(data) {
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
@@ -76,12 +67,13 @@
         const container = document.getElementById('list-container');
         container.innerHTML = ""; // 로딩 문구 삭제
 
-        // 내 이름 찾기 힌트
+        // 힌트 메시지
         const hint = document.createElement('div');
         hint.style.cssText = "font-size:13px; color:#666; margin-bottom:10px; text-align:center;";
         hint.innerText = "👇 내 이름을 누르면 토스로 연결됩니다";
         container.appendChild(hint);
 
+        // 멤버 리스트 생성
         data.members.forEach(member => {
             const btn = document.createElement('div');
             btn.className = 'member-btn';
@@ -92,8 +84,6 @@
             
             // 클릭 시 토스 송금 실행
             btn.onclick = function() {
-                // 수협, 20202020 같은 계좌 정보는 앱에서 안 보냈으면, 받는 사람(총무)이 직접 입력해야 함
-                // 여기서는 일단 금액만 보냅니다.
                 const tossUrl = `supertoss://send?amount=${member.amount}&msg=${data.title}`;
                 location.href = tossUrl;
             };
@@ -101,6 +91,7 @@
         });
     }
 
+    // 에러 표시 함수
     function showError(msg) {
         document.getElementById('receipt-title').innerText = "오류";
         document.getElementById('list-container').innerHTML = `<div class="loading" style="color:red;">${msg}</div>`;
