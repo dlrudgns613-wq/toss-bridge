@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Split 정산</title>
@@ -33,18 +32,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<script src="./js/firebase-config.js"></script>
+<script src="./js/firebase-config.js?v=2.0"></script>
 
 <script>
-    // 3. 설정 파일(firebase-config.js)에 있는 함수로 DB 시작!
     const db = initFirebase(); 
-
-    // 4. URL에서 '열쇠(ID)' 꺼내기
     const params = new URLSearchParams(window.location.search);
     const docId = params.get('id');
 
     if (docId) {
-        // 5. 창고에서 데이터 꺼내오기
         db.collection("receipts").doc(docId).get().then((doc) => {
             if (doc.exists) {
                 const data = doc.data();
@@ -60,39 +55,83 @@
         showError("잘못된 접근입니다. (ID 없음)");
     }
 
-    // 6. 화면에 그리기 함수
     function renderReceipt(data) {
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
 
         const container = document.getElementById('list-container');
-        container.innerHTML = ""; // 로딩 문구 삭제
+        container.innerHTML = ""; 
 
-        // 힌트 메시지
+        // 1. 상세 내역 표시 (새로 추가된 기능)
+        if (data.details) {
+            const detailBox = document.createElement('div');
+            detailBox.style.cssText = "background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:20px; font-size:14px; color:#555; white-space: pre-wrap; line-height: 1.6;";
+            detailBox.innerText = "[상세 내역]\n" + data.details;
+            container.appendChild(detailBox);
+        }
+
+        // 2. 멤버 그룹화 로직 (금액 같은 사람끼리 묶기)
+        const grouped = {};
+        data.members.forEach(m => {
+            const amt = m.amount;
+            if (!grouped[amt]) grouped[amt] = [];
+            grouped[amt].push(m.name);
+        });
+
+        // 힌트 메시지 (계좌 정보 유무에 따라 다르게 표시)
         const hint = document.createElement('div');
         hint.style.cssText = "font-size:13px; color:#666; margin-bottom:10px; text-align:center;";
-        hint.innerText = "👇 내 이름을 누르면 토스로 연결됩니다";
+        
+        if(data.bank && data.account) {
+            hint.innerText = `👇 내 이름을 누르면 [${data.bank}]로 자동 입력됩니다`;
+        } else {
+            hint.innerText = "👇 내 이름을 누르면 토스로 연결됩니다 (계좌 정보 없음)";
+        }
         container.appendChild(hint);
 
-        // 멤버 리스트 생성
-        data.members.forEach(member => {
+        // 3. 그룹별 버튼 생성
+        for (const [amount, names] of Object.entries(grouped)) {
             const btn = document.createElement('div');
             btn.className = 'member-btn';
+            
+            // 이름 표시 (너무 길면 '외 N명' 처리)
+            const nameStr = names.join(", ");
+            const displayAmt = Number(amount).toLocaleString();
+
+            let leftText = nameStr;
+            if (names.length > 3) {
+                leftText = `${names[0]}, ${names[1]} 외 ${names.length - 2}명`;
+            }
+
+            let rightText = "";
+            if (names.length > 1) {
+                rightText = `각 ${displayAmt}원 >`;
+            } else {
+                rightText = `${displayAmt}원 >`;
+            }
+
             btn.innerHTML = `
-                <span class="member-name">${member.name}</span>
-                <span class="member-amt">${Number(member.amount).toLocaleString()}원 ></span>
+                <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <span class="member-name" style="word-break: break-all;">${leftText}</span>
+                </div>
+                <span class="member-amt" style="min-width: 90px; text-align:right;">${rightText}</span>
             `;
             
-            // 클릭 시 토스 송금 실행
+            // 클릭 이벤트: 토스 송금 (계좌 정보 포함)
             btn.onclick = function() {
-                const tossUrl = `supertoss://send?amount=${member.amount}&msg=${data.title}`;
+                let tossUrl = `supertoss://send?amount=${amount}&msg=${data.title}`;
+                
+                // 계좌 정보가 있으면 URL에 추가
+                if (data.bank && data.account) {
+                    tossUrl += `&bank=${data.bank}&accountNo=${data.account}`;
+                }
+                
                 location.href = tossUrl;
             };
             container.appendChild(btn);
-        });
+        }
     }
 
-    // 에러 표시 함수
     function showError(msg) {
         document.getElementById('receipt-title').innerText = "오류";
         document.getElementById('list-container').innerHTML = `<div class="loading" style="color:red;">${msg}</div>`;
