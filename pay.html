@@ -20,8 +20,7 @@
         .group-amt-row { display: flex; justify-content: space-between; align-items: center; }
         .group-amt { font-size: 16px; font-weight: bold; color: #3182f6; }
         .toss-btn { font-size: 13px; color: #ffffff; background-color: #3182f6; padding: 6px 12px; border-radius: 8px; text-decoration: none; display: inline-block; }
-        .toss-btn:active { background-color: #266ce0; }
-
+        
         .details-container { margin-top: 30px; background: #fafafa; padding: 15px; border-radius: 12px; }
         .round-title { font-weight: bold; font-size: 15px; color: #333; margin-top: 15px; margin-bottom: 5px; }
         .round-title:first-child { margin-top: 0; }
@@ -64,32 +63,36 @@
     const params = new URLSearchParams(window.location.search);
     const docId = params.get('id');
 
-    // ★ [핵심] 은행 이름 -> 토스 은행 코드 변환기
-    const bankCodeMap = {
-        "NH농협": "011", "농협": "011",
-        "KB국민": "004", "국민": "004",
-        "신한": "088", "제주": "035",
-        "우리": "020", "기업": "003", "IBK기업": "003",
-        "하나": "081", "KEB하나": "081",
-        "카카오뱅크": "090", "카뱅": "090",
-        "토스뱅크": "092", "토스": "092",
-        "케이뱅크": "089", 
-        "SC제일": "023", "제일": "023",
-        "부산": "032", "대구": "031", "iM뱅크": "031",
-        "광주": "034", "전북": "037", "경남": "039",
-        "우체국": "071", "수협": "007", "새마을": "045", "신협": "048",
-        "씨티": "027", "산업": "002", "산림": "064", "저축은행": "050"
-    };
+    // ★ [핵심 1] 만능 은행 코드 찾기 함수 (대충 적어도 다 찾음)
+    function findBankCode(inputName) {
+        if (!inputName) return "";
+        // 1. 띄어쓰기 없애고, '은행' 글자 빼고, 소문자로 변환 (nh농협은행 -> nh농협)
+        const cleanName = inputName.replace(/\s+/g, '').replace(/은행/g, '').toLowerCase();
 
-    function getBankCode(name) {
-        if (!name) return "";
-        // "NH농협은행" 처럼 긴 이름도 처리하기 위해 포함 여부 확인
-        for (const key in bankCodeMap) {
-            if (name.includes(key)) {
-                return bankCodeMap[key];
-            }
-        }
-        return ""; // 못 찾으면 빈 값 (토스가 알아서 물어보게)
+        // 2. 키워드로 찾기 (순서 중요)
+        if (cleanName.includes('농협') || cleanName.includes('nh')) return "011";
+        if (cleanName.includes('국민') || cleanName.includes('kb')) return "004";
+        if (cleanName.includes('카카오') || cleanName.includes('kakao') || cleanName.includes('카뱅')) return "090";
+        if (cleanName.includes('토스') || cleanName.includes('toss')) return "092";
+        if (cleanName.includes('우리')) return "020";
+        if (cleanName.includes('신한')) return "088";
+        if (cleanName.includes('기업') || cleanName.includes('ibk')) return "003";
+        if (cleanName.includes('하나') || cleanName.includes('keb')) return "081";
+        if (cleanName.includes('새마을') || cleanName.includes('kfcc')) return "045";
+        if (cleanName.includes('부산')) return "032";
+        if (cleanName.includes('대구') || cleanName.includes('im')) return "031";
+        if (cleanName.includes('케이') || cleanName.includes('kbank')) return "089";
+        if (cleanName.includes('신협')) return "048";
+        if (cleanName.includes('우체국') || cleanName.includes('우체')) return "071";
+        if (cleanName.includes('sc') || cleanName.includes('제일')) return "023";
+        if (cleanName.includes('광주')) return "034";
+        if (cleanName.includes('전북')) return "037";
+        if (cleanName.includes('수협')) return "007";
+        if (cleanName.includes('씨티') || cleanName.includes('city')) return "027";
+        if (cleanName.includes('산업')) return "002";
+        if (cleanName.includes('제주')) return "035";
+        
+        return ""; // 못 찾으면 빈 값
     }
 
     if (docId) {
@@ -108,7 +111,6 @@
         document.getElementById('receipt-title').innerText = data.title;
         document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
 
-        // 계좌 정보 표시
         if (data.bank && data.bank.trim() !== "") {
             document.getElementById('bank-area').style.display = 'block';
             document.getElementById('bank-text').innerText = data.bank;
@@ -122,39 +124,47 @@
         });
 
         const sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
-
         const container = document.getElementById('list-container');
         container.innerHTML = ""; 
 
         sortedAmounts.forEach(amount => {
-            const names = groups[amount].join(", "); 
+            const memberNames = groups[amount];
+            const namesText = memberNames.join(", ");
             
+            // ★ [핵심 2] '각' 단어 처리 로직 (1명이면 '각' 빼기)
+            let priceLabel = "";
+            if (memberNames.length > 1) {
+                priceLabel = "각 " + Number(amount).toLocaleString() + "원";
+            } else {
+                priceLabel = Number(amount).toLocaleString() + "원";
+            }
+
+            // ★ [핵심 3] 계좌번호에서 하이픈(-) 제거 및 은행 코드 찾기
+            // 데이터에 따로 저장된 bankName이 없으면, 전체 bank 문자열에서라도 찾도록 시도
+            let rawBankName = data.bankName || data.bank || ""; 
+            let rawAccountNo = data.accountNumber || "";
+            
+            // 계좌번호에 하이픈이 있으면 토스가 인식 못 할 수 있으므로 숫자만 남김
+            const cleanAccountNo = rawAccountNo.replace(/[^0-9]/g, '');
+            const bankCode = findBankCode(rawBankName); 
+
+            const tossUrl = `supertoss://send?bank=${bankCode}&accountNo=${cleanAccountNo}&amount=${amount}&msg=${data.title}`;
+
             const div = document.createElement('div');
             div.className = 'member-group';
-            
-            // ★ [핵심] 은행 코드로 변환해서 토스에 전달
-            const bankName = data.bankName || "";
-            const bankCode = getBankCode(bankName); // 한글 이름 -> 숫자 코드 변환
-            const accountNo = data.accountNumber || "";
-            
-            // bank 파라미터에는 이제 '이름' 대신 '코드'가 들어갑니다!
-            const tossUrl = `supertoss://send?bank=${bankCode}&accountNo=${accountNo}&amount=${amount}&msg=${data.title}`;
-
             div.innerHTML = `
-                <div class="group-names">${names}</div>
+                <div class="group-names">${namesText}</div>
                 <div class="group-amt-row">
-                    <span class="group-amt">각 ${Number(amount).toLocaleString()}원</span>
+                    <span class="group-amt">${priceLabel}</span>
                     <a href="${tossUrl}" class="toss-btn">송금 ></a>
                 </div>
             `;
             container.appendChild(div);
         });
 
-        // 상세 내역 표시
         if (data.details && data.details.length > 0) {
             document.getElementById('details-area').style.display = 'block';
             const detailsList = document.getElementById('details-list');
-            
             data.details.forEach(round => {
                 const roundBox = document.createElement('div');
                 roundBox.innerHTML = `<div class="round-title">📍 ${round.rName}</div>`;
