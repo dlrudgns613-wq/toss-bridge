@@ -5,7 +5,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyCUyHxdW7I3f3P3n915oKszPTrYz7COg0Q",      // 
     authDomain: "smartsplit-7075a.firebaseapp.com",
     projectId: "smartsplit-7075a",
-    storageBucket: ""smartsplit-7075a.firebasestorage.app",
+    storageBucket: "smartsplit-7075a.firebasestorage.app",
     messagingSenderId: "717652424048",
     appId: "1:717652424048:web:26b5db2078a8435e474bb5"
 };
