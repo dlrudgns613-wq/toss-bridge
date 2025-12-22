@@ -33,7 +33,7 @@
             line-height: 1.4;
         }
         
-        /* [수정] 상세 내역 텍스트 (지저분한 태그 삭제) */
+        /* 상세 내역 텍스트 */
         .details-text {
             font-size: 13px;
             color: #8B95A1;
@@ -55,20 +55,20 @@
             font-weight: 700;
             color: #3182F6;
         }
-        /* [추가] 1인당 금액 표시 */
+        /* 1인당 금액 표시 */
         .per-person {
             font-size: 12px;
             color: #8B95A1;
             margin-top: 4px;
         }
 
-        /* [수정] 버튼 디자인 다이어트 */
+        /* 버튼 디자인 */
         .send-btn {
             background-color: #3182F6;
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 8px 16px; /* 크기 줄임 */
+            padding: 8px 16px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -99,20 +99,17 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<script>
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // [중요] 개발자님이 따로 빼두신 API 키 설정 코드가 있다면 이 부분을 지우지 말고 유지하세요!
-    // 만약 아래 코드가 없다면, 기존에 쓰시던 firebaseConfig 설정을 여기에 넣으시면 됩니다.
-    // ------------------------------------------------------------------
-    // const firebaseConfig = { ... };
-    // firebase.initializeApp(firebaseConfig);
-    // ------------------------------------------------------------------
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+<script src="js/firebase-config.js"></script>
 
+<script>
+    // 3. 설정 파일에 있는 함수로 DB 시작!
+    // (이제 여기에 API 키 같은 건 적을 필요 없습니다)
     const db = initFirebase();
-    // ★★★ [해결책] 강제 연결 설정 추가 ★★★
+
+    // 혹시 모를 연결 오류 방지 (와이파이 등)
     db.settings({ experimentalForceLongPolling: true });
-    // URL 파싱 및 데이터 로드 시작
+
+    // --- 데이터 로딩 및 화면 그리기 로직 ---
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('id');
 
@@ -131,12 +128,11 @@
             }
         }).catch((error) => {
             console.error("Error:", error);
-            // 에러 시 코드와 메시지 출력 (디버깅용)
-            document.getElementById('loading').innerText = "데이터 로드 실패: " + error.code;
+            // 에러 나면 화면에 이유 출력
+            document.getElementById('loading').innerText = "오류: " + error.message;
         });
     }
 
-    // ★ [핵심] UI 렌더링 로직 (2차(일부) 문제 해결됨)
     function renderApp(data) {
         document.getElementById('loading').style.display = 'none';
         const container = document.getElementById('content');
@@ -146,26 +142,20 @@
         let memberDetails = {}; 
 
         data.members.forEach(m => {
-            // 1. 금액별 그룹핑
             let amt = m.amount;
             if(!groups[amt]) groups[amt] = [];
             groups[amt].push(m.name);
 
-            // 2. 상세 내역 텍스트 생성 ("2차(멜론)" 형태로 변환)
+            // "2차(멜론)" 상세 내역 로직
             let myHistory = [];
             data.details.forEach((round, rIdx) => {
                 let roundName = round.rName || (rIdx + 1) + "차";
-                
-                // 내가 먹은 항목 필터링
                 let totalItems = round.items.length;
-                let myItems = round.items.filter(item => {
-                    return !item.eaters || item.eaters.includes(m.name);
-                });
+                let myItems = round.items.filter(item => !item.eaters || item.eaters.includes(m.name));
 
                 if (myItems.length === totalItems && totalItems > 0) {
-                     myHistory.push(roundName); // 전부 먹었으면 "1차"
+                     myHistory.push(roundName); 
                 } else if (myItems.length > 0) {
-                    // 일부만 먹었으면 "2차(멜론 외 1건)"
                     let itemNames = myItems.map(i => i.iName);
                     let detailStr = itemNames[0];
                     if (itemNames.length > 1) detailStr += ` 외 ${itemNames.length - 1}건`;
@@ -175,7 +165,6 @@
             memberDetails[m.name] = myHistory.join(", ");
         });
 
-        // 금액 큰 순서대로 정렬 및 카드 생성
         let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
 
         sortedAmounts.forEach(amt => {
@@ -189,13 +178,11 @@
             let namesHtml = members.join(', ');
             let desc = memberDetails[members[0]] || "내역 없음";
 
-            // [추가] 1인당 금액 표시
             let perPersonHtml = '';
             if (members.length > 1) {
                 perPersonHtml = `<div class="per-person">${members.length}명 / 1인 ${price.toLocaleString()}원</div>`;
             }
 
-            // 토스 송금 링크
             let tossLink = `toss://send?amount=${price}&msg=${encodeURIComponent(data.title)}`;
 
             card.innerHTML = `
@@ -214,11 +201,9 @@
             container.appendChild(card);
         });
 
-        // 하단 전체 영수증 내역
         let detailsDiv = document.createElement('div');
         detailsDiv.className = 'receipt-details';
         detailsDiv.innerHTML = `<div class="receipt-title">📋 전체 상세 지출 내역</div>`;
-        
         data.details.forEach(r => {
             detailsDiv.innerHTML += `<div style="font-weight:bold; margin-top:10px; font-size:13px;">${r.rName}</div>`;
             r.items.forEach(i => {
