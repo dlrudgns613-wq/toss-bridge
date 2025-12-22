@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>정산 영수증</title>
     <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script src="js/firebase-config.js"></script>
+
     <style>
         body {
             background-color: #E5E5E5; /* 배경: 회색 책상 느낌 */
@@ -19,76 +23,49 @@
             padding: 20px;
         }
 
-        /* 영수증 종이 본체 */
         .receipt-container {
             background-color: #FFF;
             width: 100%;
             max-width: 400px;
             position: relative;
-            padding: 30px 25px 40px 25px; /* 하단 패딩 넉넉하게 */
+            padding: 30px 25px 40px 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             margin-bottom: 50px;
         }
 
-        /* ★ 핵심: CSS로 만드는 하단 지그재그 효과 */
+        /* 지그재그 효과 */
         .receipt-container::after {
             content: "";
             position: absolute;
-            bottom: -10px; /* 본체 바로 아래 */
+            bottom: -10px;
             left: 0;
             width: 100%;
             height: 10px;
             background: linear-gradient(45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%),
                         linear-gradient(-45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%);
-            background-size: 20px 20px; /* 톱니 크기 조절 */
-            background-position: 0 -10px; /* 위치 조정 */
+            background-size: 20px 20px;
+            background-position: 0 -10px;
         }
 
         h1, h2, h3, p { margin: 0; }
-
         .header { text-align: center; margin-bottom: 20px; }
         .header h2 { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #222; }
         .header p { color: #888; font-size: 12px; margin-top: 5px; }
 
-        .divider {
-            border-bottom: 2px dashed #AAA;
-            margin: 15px 0;
-        }
-
+        .divider { border-bottom: 2px dashed #AAA; margin: 15px 0; }
         .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #555; }
         .info-value { color: #000; font-weight: bold; }
 
         .total-section { text-align: center; margin: 30px 0; }
         .total-label { font-size: 16px; color: #555; margin-bottom: 5px; }
-        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; } /* 토스 블루 */
+        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; }
 
-        /* 개인별 카드 스타일 (영수증 내 구역) */
-        .member-card {
-            margin-top: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px dashed #DDD;
-        }
-        .member-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
+        .member-card { margin-top: 20px; padding-bottom: 20px; border-bottom: 1px dashed #DDD; }
+        .member-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .member-name { font-size: 18px; font-weight: bold; }
         
-        /* 상세 내역 리스트 */
-        .detail-list { font-size: 13px; color: #666; padding-left: 10px; }
-        .detail-item { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        
-        /* 각출 금액 표시 */
-        .n-price { 
-            text-align: right; 
-            font-size: 12px; 
-            color: #888; 
-            margin-top: 2px; 
-        }
+        .n-price { text-align: right; font-size: 12px; color: #888; margin-top: 2px; }
 
-        /* 송금 버튼 (심플한 블랙 버튼으로 변경) */
         .btn-toss {
             display: block;
             width: 100%;
@@ -103,7 +80,6 @@
             font-weight: bold;
         }
         .btn-toss:active { background-color: #444; }
-
         .loading { text-align: center; padding: 50px; color: #888; }
     </style>
 </head>
@@ -114,19 +90,10 @@
     </div>
 
     <script>
-        // ★ 파이어베이스 설정 (본인 설정으로 교체 필수!)
-        const firebaseConfig = {
-            apiKey: "API_KEY_HERE",
-            authDomain: "PROJECT_ID.firebaseapp.com",
-            projectId: "PROJECT_ID",
-            storageBucket: "PROJECT_ID.appspot.com",
-            messagingSenderId: "SENDER_ID",
-            appId: "APP_ID"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        // 3. ★ 여기서 config 파일에 있는 initFirebase() 호출!
+        // (이제 apiKey 오류 안 남)
+        const db = initFirebase();
 
-        // URL에서 ID 가져오기
         const urlParams = new URLSearchParams(window.location.search);
         const docId = urlParams.get('id');
 
@@ -145,6 +112,7 @@
                 }
             }).catch((error) => {
                 console.log("Error:", error);
+                document.getElementById('receiptArea').innerHTML = "<div class='loading'>오류가 발생했습니다.<br>" + error.message + "</div>";
             });
         }
 
@@ -154,39 +122,25 @@
                     <h2>RECEIPT</h2>
                     <p>Smart Split</p>
                 </div>
-                
                 <div class="divider"></div>
-
-                <div class="info-row">
-                    <span>모임명</span>
-                    <span class="info-value">${data.title}</span>
-                </div>
-                <div class="info-row">
-                    <span>일 시</span>
-                    <span class="info-value">${data.date}</span>
-                </div>
-                
+                <div class="info-row"><span>모임명</span><span class="info-value">${data.title}</span></div>
+                <div class="info-row"><span>일 시</span><span class="info-value">${data.date}</span></div>
                 <div class="divider"></div>
-
                 <div class="total-section">
                     <div class="total-label">TOTAL AMOUNT</div>
                     <div class="total-price">₩ ${data.total.toLocaleString()}</div>
                 </div>
-
                 <div class="divider"></div>
                 <div style="text-align:center; font-size:14px; margin-bottom:15px; font-weight:bold;">[ 멤버별 상세 내역 ]</div>
             `;
 
-            // 멤버별 카드 생성
             data.members.forEach(member => {
-                // 내역이 0원인 사람은 스킵? (선택사항)
                 if(member.amount === 0) return;
-
-                // ★ 송금 링크 생성 (금액이 자동 입력된 토스 링크)
-                let tossLink = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${member.amount}`;
                 
-                // PC/미설치 대비용 (실제론 앱이 없으면 마켓으로 감)
-                // 만약 계좌복사 기능을 넣고 싶다면 여기에 JS 추가 가능
+                // 토스 딥링크 생성 (은행/계좌 정보가 없으면 기본값 처리)
+                let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
+                let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
+                let tossLink = `supertoss://send?amount=${member.amount}${bankParam}${accountParam}`;
 
                 html += `
                     <div class="member-card">
@@ -194,33 +148,7 @@
                             <span class="member-name">${member.name}</span>
                             <span style="font-weight:bold; font-size:16px;">₩ ${member.amount.toLocaleString()}</span>
                         </div>
-                        
-                        <div class="detail-list">
-                `;
-
-                // ★ "1차(전체 포함)" 삭제 -> 실제 어떤 라운드인지 표시
-                // data.details를 순회하며 이 사람이 포함된 라운드를 찾거나, 
-                // DB 저장 구조상 개인별 상세 내역이 없다면 "N차 정산 참여" 등으로 심플하게 표시
-                
-                // ※ 중요: DB 저장 시 'details' 안에 누가 먹었는지 정보가 있어야 정확히 표시 가능
-                // 현재 구조가 details = [{rName: "1차", items: [...]}] 형태라고 가정하면,
-                // 여기서 복잡하게 계산하기보다 심플하게 가겠습니다.
-                
-                // 개발자님이 원하신 "기괴한 텍스트" 제거 로직:
-                // 상세 내역을 굳이 구구절절 쓰지 않고, "정산 금액" 아래에 "송금하기"만 깔끔하게.
-                // 만약 "1차, 2차"를 보여주고 싶다면 아래처럼 심플하게.
-
-                html += `
-                            <div class="detail-item">
-                                <span>정산 참여 금액</span>
-                                <span>₩ ${member.amount.toLocaleString()}</span>
-                            </div>
-                        </div>
-
-                        <div class="n-price">
-                             (1인 ${member.amount.toLocaleString()}원)
-                        </div>
-
+                        <div class="n-price">(1인 ${member.amount.toLocaleString()}원)</div>
                         <a href="${tossLink}" class="btn-toss">송금하기</a>
                     </div>
                 `;
@@ -228,9 +156,7 @@
 
             html += `
                 <div class="divider"></div>
-                <div style="text-align:center; color:#AAA; font-size:12px; margin-top:20px;">
-                    Thank you for using Smart Split
-                </div>
+                <div style="text-align:center; color:#AAA; font-size:12px; margin-top:20px;">Thank you for using Smart Split</div>
             `;
 
             document.getElementById('receiptArea').innerHTML = html;
