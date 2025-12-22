@@ -139,7 +139,7 @@
             }
         }).catch((error) => {
             console.error("Error:", error);
-            document.getElementById('loading').innerText = "데이터 로딩 실패";
+           document.getElementById('loading').innerText = "에러 상세: " + error.code + " / " + error.message;
         });
     }
 
