@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>정산 영수증</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -12,9 +12,10 @@
     <script src="js/firebase-config.js"></script>
 
     <style>
+        /* 1. 전체 배경: 회색 데스크 매트 느낌 */
         body {
-            background-color: #E5E5E5; /* 배경: 회색 책상 느낌 */
-            font-family: 'Inconsolata', monospace; /* 영수증 폰트 */
+            background-color: #555555; 
+            font-family: 'Inconsolata', 'Noto Sans KR', monospace;
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -23,82 +24,113 @@
             padding: 20px;
         }
 
-        .receipt-container {
-            background-color: #FFF;
+        /* 2. 영수증 본체: 길쭉한 종이 */
+        .receipt-paper {
+            background-color: #FDFBF7; /* 미색 영수증 종이 */
             width: 100%;
-            max-width: 400px;
+            max-width: 380px;
             position: relative;
-            padding: 30px 25px 40px 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 40px 25px 50px 25px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             margin-bottom: 50px;
         }
 
-        /* 지그재그 효과 */
-        .receipt-container::after {
+        /* 3. 하단 지그재그 (CSS로 구현) */
+        .receipt-paper::after {
             content: "";
             position: absolute;
             bottom: -10px;
             left: 0;
             width: 100%;
             height: 10px;
-            background: linear-gradient(45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%),
-                        linear-gradient(-45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%);
+            /* 톱니바퀴 패턴 */
+            background: linear-gradient(45deg, transparent 33.333%, #FDFBF7 33.333%, #FDFBF7 66.667%, transparent 66.667%),
+                        linear-gradient(-45deg, transparent 33.333%, #FDFBF7 33.333%, #FDFBF7 66.667%, transparent 66.667%);
             background-size: 20px 20px;
             background-position: 0 -10px;
         }
 
-        h1, h2, h3, p { margin: 0; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h2 { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #222; }
-        .header p { color: #888; font-size: 12px; margin-top: 5px; }
+        /* 텍스트 스타일 */
+        h1, h2, p { margin: 0; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h2 { font-size: 28px; font-weight: 900; letter-spacing: 2px; color: #222; margin-bottom: 5px; }
+        .header p { color: #666; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
 
-        .divider { border-bottom: 2px dashed #AAA; margin: 15px 0; }
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #555; }
-        .info-value { color: #000; font-weight: bold; }
-
-        .total-section { text-align: center; margin: 30px 0; }
-        .total-label { font-size: 16px; color: #555; margin-bottom: 5px; }
-        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; }
-
-        .member-card { margin-top: 20px; padding-bottom: 20px; border-bottom: 1px dashed #DDD; }
-        .member-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .member-name { font-size: 18px; font-weight: bold; }
-        
-        .n-price { text-align: right; font-size: 12px; color: #888; margin-top: 2px; }
-
-        .btn-toss {
-            display: block;
-            width: 100%;
-            background-color: #222;
-            color: white;
-            padding: 12px 0;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 14px;
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
+        /* 점선 구분선 */
+        .dashed-line {
+            border-bottom: 2px dashed #CCC;
+            margin: 15px 0;
         }
-        .btn-toss:active { background-color: #444; }
-        .loading { text-align: center; padding: 50px; color: #888; }
+
+        /* 정보 행 */
+        .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; color: #444; }
+        .row.bold { font-weight: 700; color: #000; font-size: 16px; }
+        
+        /* 총액 섹션 */
+        .total-box { text-align: right; margin: 20px 0; }
+        .total-box span { display: block; font-size: 14px; color: #666; }
+        .total-box strong { font-size: 32px; color: #000; font-weight: 900; }
+
+        /* 멤버 카드 (영수증 내 구역) */
+        .member-section { margin-top: 30px; }
+        .member-name { font-size: 18px; font-weight: 900; color: #000; margin-bottom: 10px; display: block; border-left: 4px solid #000; padding-left: 10px; }
+        
+        /* 상세 내역 리스트 */
+        .detail-list { 
+            background-color: #F8F8F8; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-bottom: 10px; 
+        }
+        .detail-item { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 13px; 
+            margin-bottom: 6px; 
+            color: #555;
+        }
+        .detail-item:last-child { margin-bottom: 0; }
+        
+        /* 부분 참여 뱃지 */
+        .badge-partial { color: #FF5252; font-size: 11px; margin-left: 5px; font-weight: bold; }
+
+        /* 송금 버튼 (토스 블루 말고 검은색 잉크 느낌) */
+        .btn-pay {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #222;
+            color: #FFF;
+            padding: 15px 20px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 2px; /* 각지게 */
+            transition: opacity 0.2s;
+        }
+        .btn-pay:active { opacity: 0.7; }
+        
+        .loading { text-align: center; padding: 100px 0; color: #AAA; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div class="receipt-container" id="receiptArea">
-        <div class="loading">영수증 출력 중...</div>
+    <div class="receipt-paper" id="receiptArea">
+        <div class="loading">
+            영수증 데이터를<br>인쇄하고 있습니다...
+        </div>
     </div>
 
     <script>
-        // 3. ★ 여기서 config 파일에 있는 initFirebase() 호출!
-        // (이제 apiKey 오류 안 남)
+        // 1. 설정 파일에서 DB 초기화 (js/firebase-config.js 필수)
         const db = initFirebase();
 
+        // 2. URL 파라미터 확인
         const urlParams = new URLSearchParams(window.location.search);
         const docId = urlParams.get('id');
 
         if (!docId) {
-            document.getElementById('receiptArea').innerHTML = "<div class='loading'>잘못된 접근입니다.</div>";
+            document.getElementById('receiptArea').innerHTML = "<div class='loading'>잘못된 영수증 번호입니다.</div>";
         } else {
             loadReceipt(docId);
         }
@@ -108,55 +140,132 @@
                 if (doc.exists) {
                     renderReceipt(doc.data());
                 } else {
-                    document.getElementById('receiptArea').innerHTML = "<div class='loading'>영수증을 찾을 수 없습니다.</div>";
+                    document.getElementById('receiptArea').innerHTML = "<div class='loading'>삭제되었거나 없는 영수증입니다.</div>";
                 }
             }).catch((error) => {
-                console.log("Error:", error);
-                document.getElementById('receiptArea').innerHTML = "<div class='loading'>오류가 발생했습니다.<br>" + error.message + "</div>";
+                console.error(error);
+                document.getElementById('receiptArea').innerHTML = "<div class='loading'>통신 오류가 발생했습니다.</div>";
             });
         }
 
         function renderReceipt(data) {
+            // 날짜 포맷팅
+            const dateStr = data.date || "날짜 미상";
+            
+            // HTML 헤더 조립
             let html = `
                 <div class="header">
                     <h2>RECEIPT</h2>
-                    <p>Smart Split</p>
+                    <p>Smart Split Settlement</p>
                 </div>
-                <div class="divider"></div>
-                <div class="info-row"><span>모임명</span><span class="info-value">${data.title}</span></div>
-                <div class="info-row"><span>일 시</span><span class="info-value">${data.date}</span></div>
-                <div class="divider"></div>
-                <div class="total-section">
-                    <div class="total-label">TOTAL AMOUNT</div>
-                    <div class="total-price">₩ ${data.total.toLocaleString()}</div>
+                
+                <div class="dashed-line"></div>
+
+                <div class="row">
+                    <span>모임명</span>
+                    <strong>${data.title}</strong>
                 </div>
-                <div class="divider"></div>
-                <div style="text-align:center; font-size:14px; margin-bottom:15px; font-weight:bold;">[ 멤버별 상세 내역 ]</div>
+                <div class="row">
+                    <span>일자</span>
+                    <span>${dateStr}</span>
+                </div>
+                <div class="row">
+                    <span>참석 인원</span>
+                    <span>${data.members.length}명</span>
+                </div>
+
+                <div class="dashed-line"></div>
+
+                <div class="total-box">
+                    <span>TOTAL AMOUNT</span>
+                    <strong>₩ ${Number(data.total).toLocaleString()}</strong>
+                </div>
+
+                <div class="dashed-line"></div>
+                <div style="text-align:center; font-size:14px; font-weight:bold; margin: 20px 0;">[ 개인별 정산 상세 내역 ]</div>
             `;
 
+            // 멤버별 카드 생성 로직
             data.members.forEach(member => {
+                // 0원인 사람은 굳이 안 보여줌 (옵션)
                 if(member.amount === 0) return;
-                
-                // 토스 딥링크 생성 (은행/계좌 정보가 없으면 기본값 처리)
+
+                // ★ [Smart Logic] 상세 내역 브리핑 생성
+                let detailsHtml = "";
+                let detailsCount = 0;
+
+                // data.details가 존재한다면 (라운드 정보)
+                if (data.details && Array.isArray(data.details)) {
+                    data.details.forEach((round, index) => {
+                        // 이 라운드에서 이 멤버가 내야 할 돈이 있는지 확인
+                        // (단순화를 위해 DB 구조상 details 안에 user별 금액 정보가 없으면 추정이 어렵습니다.
+                        //  따라서 여기서는 '전체 금액' 대비 '1/N' 여부를 판단하는 로직 대신,
+                        //  가장 확실한 '라운드 이름'을 보여주는 방식을 택합니다.)
+                        
+                        // ※ 중요: 현재 DB 구조상 details 안에 '누가 얼마 냈는지'가 없다면 
+                        // 정확한 '술 제외' 판독은 불가능합니다. 
+                        // 하지만 개발자님이 원하시는 건 "1차(전체)" 같은 로봇 멘트 제거이므로
+                        // 여기서는 '차수 이름'을 깔끔하게 보여줍니다.
+                        
+                        // 만약 round.items 안에 'user' 정보가 있다면 여기서 필터링 가능
+                        // 일단은 모든 라운드를 보여주되, 금액 로직은 전체 1/N이라 가정하고 뿌려줍니다.
+                        
+                        // (개발자님 DB 구조에 맞춰 유연하게 표시)
+                        let roundName = round.rName || (index + 1) + "차";
+                        
+                        // 가상의 로직: 만약 이 멤버의 총액이 (총액/N)보다 현저히 낮다면?
+                        // -> 술 제외 등의 사유로 판단
+                        
+                        detailsHtml += `
+                            <div class="detail-item">
+                                <span>• ${roundName}</span>
+                                </div>
+                        `;
+                        detailsCount++;
+                    });
+                }
+
+                // 만약 상세 데이터가 없다면 기본 멘트
+                if (detailsCount === 0) {
+                    detailsHtml = `<div class="detail-item" style="color:#AAA;">상세 내역 없음</div>`;
+                }
+
+                // 토스 링크 생성
                 let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
                 let tossLink = `supertoss://send?amount=${member.amount}${bankParam}${accountParam}`;
 
+                // ★ [최종 렌더링] 멤버 카드
                 html += `
-                    <div class="member-card">
-                        <div class="member-header">
-                            <span class="member-name">${member.name}</span>
-                            <span style="font-weight:bold; font-size:16px;">₩ ${member.amount.toLocaleString()}</span>
+                    <div class="member-section">
+                        <span class="member-name">${member.name}</span>
+                        
+                        <div class="detail-list">
+                            ${detailsHtml}
+                            <div class="dashed-line" style="margin: 8px 0; border-color:#DDD;"></div>
+                            <div class="detail-item" style="font-weight:bold; color:#000;">
+                                <span>청구 금액</span>
+                                <span>₩ ${member.amount.toLocaleString()}</span>
+                            </div>
                         </div>
-                        <div class="n-price">(1인 ${member.amount.toLocaleString()}원)</div>
-                        <a href="${tossLink}" class="btn-toss">송금하기</a>
+
+                        <a href="${tossLink}" class="btn-pay">
+                            <span>송금하기</span>
+                            <span>➤</span>
+                        </a>
+                        <div style="text-align:right; font-size:11px; color:#888; margin-top:5px;">
+                            (클릭 시 토스로 연결됩니다)
+                        </div>
                     </div>
                 `;
             });
 
             html += `
-                <div class="divider"></div>
-                <div style="text-align:center; color:#AAA; font-size:12px; margin-top:20px;">Thank you for using Smart Split</div>
+                <div class="dashed-line" style="margin-top:40px;"></div>
+                <div style="text-align:center; color:#888; font-size:12px; margin-top:15px;">
+                    Thank you for using Smart Split<br>
+                    <span style="font-size:10px;">||| || |||| || ||| || ||</span>
+                </div>
             `;
 
             document.getElementById('receiptArea').innerHTML = html;
