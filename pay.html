@@ -3,325 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Split 정산</title>
-
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-    <script src="./js/firebase-config.js"></script>
-
+    <title>Smart Split 정산서</title>
     <style>
-        :root {
-            --primary: #3182f6;
-            --bg: #f2f4f6;
-            --text-main: #191f28;
-            --text-sub: #8b95a1;
-            --white: #ffffff;
-        }
-
+        /* [스타일 대개조] 깔끔하고 직관적인 토스 스타일 */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F2F4F6;
             margin: 0;
             padding: 20px;
-            display: flex;
-            justify-content: center;
+            color: #333;
         }
-
         .container {
             max-width: 500px;
-            width: 100%;
+            margin: 0 auto;
         }
-
-        /* 헤더 스타일 */
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-top: 20px;
-        }
-        
-        .header .meeting-title {
-            font-size: 26px;
-            font-weight: 800;
-            margin-bottom: 6px;
-            color: var(--text-main);
-        }
-
-        .header .total-amount {
-            font-size: 15px;
-            color: var(--text-sub);
-            font-weight: 500;
-        }
-
-        /* 은행 정보 카드 */
-        .bank-info-card {
-            background-color: #e8f3ff;
-            color: var(--primary);
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 15px;
-        }
-
-        /* 그룹 카드 (핵심 UI) */
-        .group-card {
-            background-color: var(--white);
-            border-radius: 18px;
-            padding: 20px;
+        /* 카드 디자인 */
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
             margin-bottom: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-            border: 1px solid #f0f0f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
-
-        .group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .group-names {
+        /* 이름 영역 */
+        .names {
             font-size: 17px;
             font-weight: 700;
-            color: var(--text-main);
+            margin-bottom: 8px;
+            color: #191F28;
             line-height: 1.4;
         }
-
+        /* 핵심: 상세 내역 텍스트 (태그 대신 사용) */
+        .details-text {
+            font-size: 13px;
+            color: #8B95A1;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .details-highlight {
+            color: #4E5968; /* 먹은 메뉴는 좀 더 진하게 */
+        }
+        
+        /* 금액 영역 */
         .price-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+            align-items: flex-end;
+            margin-top: 16px;
         }
-
-        .price-value {
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--primary);
-        }
-
-        /* 송금 버튼 */
-        .btn-send {
-            background-color: var(--primary);
-            color: var(--white);
-            border: none;
-            width: 100%;
-            padding: 16px;
-            border-radius: 14px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            text-align: center;
-            text-decoration: none;
-            display: block;
-            box-sizing: border-box;
-            transition: transform 0.1s;
-        }
-        
-        .btn-send:active { transform: scale(0.98); }
-
-        /* 상세 내역 및 안심 문구 */
-        .details-section {
-            margin-top: 40px;
-            border-top: 1px dashed #d1d6db;
-            padding-top: 24px;
-        }
-
-        .detail-item {
-            font-size: 13px;
-            color: var(--text-sub);
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .footer-safe {
-            text-align: center;
-            font-size: 12px;
-            color: #b0b8c1;
-            margin-top: 40px;
-            margin-bottom: 20px;
-        }
-
-        .loader { text-align: center; padding: 40px; color: var(--text-sub); }
-        .error { color: #e02929; text-align: center; padding: 20px; }
-
-        /* ▼▼▼▼▼ 아까 물어보신 CSS를 여기에 합쳤습니다! ▼▼▼▼▼ */
-        
-        /* 신뢰를 주는 꼬리표 스타일 */
-        .price-desc-badge {
-            display: inline-block;
-            background-color: #e8f3ff; /* 연한 파랑 배경 */
-            color: #1b64da; /* 진한 파랑 글씨 */
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        
-        .badge-count {
-            font-size: 11px;
-            color: #8b95a1;
-            background-color: #f2f4f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-        }
-
         .price-info {
             display: flex;
-            flex-direction: column; /* 태그가 위에 오도록 */
-            align-items: flex-start;
+            flex-direction: column;
         }
-        /* ▲▲▲▲▲ 여기까지 추가됨 ▲▲▲▲▲ */
+        .total-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3182F6;
+        }
+        /* "1인당 얼마" */
+        .per-person {
+            font-size: 12px;
+            color: #8B95A1;
+            margin-top: 4px;
+        }
 
+        /* 버튼 다이어트 */
+        .send-btn {
+            background-color: #3182F6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px; /* 크기 줄임 */
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .send-btn:active { background-color: #1B64DA; }
+
+        /* 하단 상세 내역 */
+        .receipt-details {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px dashed #C5C8CE;
+        }
+        .receipt-title { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: #666; }
+        
+        /* 로딩 */
+        #loading { text-align: center; margin-top: 50px; font-size: 14px; color: #888; }
     </style>
 </head>
 <body>
 
-<div class="container" id="app">
-    <div class="loader">정산 내역을 불러오는 중...</div>
+<div class="container">
+    <div id="loading">정산 내역을 불러오는 중...</div>
+    <div id="content" style="display: none;">
+        </div>
 </div>
 
-<script>
-    // 1. Firebase 초기화 (설정 파일 사용)
-    let db;
-    try {
-        db = initFirebase();
-    } catch (e) {
-        console.error("Firebase 초기화 실패:", e);
-        document.getElementById('app').innerHTML = '<div class="error">설정 파일을 불러오지 못했습니다.</div>';
-    }
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+<script>
+    // 1. 파이어베이스 설정 (본인 설정으로 교체 필수!)
+    // ResultActivity.java에서 썼던 google-services.json 내용 참고
+    const firebaseConfig = {
+        apiKey: "API_KEY_HERE",
+        authDomain: "PROJECT_ID.firebaseapp.com",
+        projectId: "PROJECT_ID",
+        storageBucket: "PROJECT_ID.appspot.com",
+        messagingSenderId: "SENDER_ID",
+        appId: "APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 2. URL에서 ID 가져오기 (?id= 문서ID)
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('id');
-    const appDiv = document.getElementById('app');
 
     if (!docId) {
-        appDiv.innerHTML = '<div class="error">잘못된 접근입니다. (ID 없음)</div>';
+        document.getElementById('loading').innerText = "잘못된 접근입니다.";
     } else {
         loadData(docId);
     }
 
-    async function loadData(id) {
-        try {
-            const docRef = db.collection("receipts").doc(id);
-            const docSnap = await docRef.get();
-
-            if (docSnap.exists) {
-                renderReceipt(docSnap.data());
+    function loadData(id) {
+        db.collection('receipts').doc(id).get().then((doc) => {
+            if (doc.exists) {
+                renderApp(doc.data());
             } else {
-                appDiv.innerHTML = '<div class="error">정산 내역을 찾을 수 없습니다.</div>';
+                document.getElementById('loading').innerText = "삭제되거나 없는 정산서입니다.";
             }
-        } catch (e) {
-            console.error(e);
-            appDiv.innerHTML = `<div class="error">오류 발생: ${e.message}</div>`;
-        }
+        }).catch((error) => {
+            console.error("Error:", error);
+            document.getElementById('loading').innerText = "데이터 로딩 실패";
+        });
     }
 
-    function renderReceipt(data) {
-        // 1. 같은 금액 & 같은 사유(desc)끼리 그룹핑
-        const groups = {};
-        data.members.forEach(member => {
-            if (member.amount === 0) return;
-            
-            // 키를 '금액_사유'로 만들어서 완벽하게 구분
-            const key = `${member.amount}_${member.desc}`;
-            
-            if (!groups[key]) {
-                groups[key] = {
-                    amount: member.amount,
-                    desc: member.desc || "참여", // desc가 없으면 기본값
-                    names: []
-                };
-            }
-            groups[key].names.push(member.name);
+    function renderApp(data) {
+        document.getElementById('loading').style.display = 'none';
+        const container = document.getElementById('content');
+        container.style.display = 'block';
+
+        // --- 데이터 가공 로직 (핵심) ---
+        // 금액별로 사람 묶기 (Amount -> [Names])
+        let groups = {};
+        
+        // 멤버별 상세 내역 분석 ("무엇을 먹었나")
+        let memberDetails = {}; // name -> string (ex: "1차(삼겹살), 2차(콜라)")
+
+        data.members.forEach(m => {
+            // 그룹핑
+            let amt = m.amount;
+            if(!groups[amt]) groups[amt] = [];
+            groups[amt].push(m.name);
+
+            // ★ 상세 내역 텍스트 생성 로직 (Problem 4 해결)
+            let myHistory = [];
+            data.details.forEach((round, rIdx) => {
+                let ateItems = [];
+                let roundName = round.rName || (rIdx + 1) + "차";
+                
+                // 이 라운드의 모든 메뉴 중 내가 먹은 것 찾기 (DB 구조에 따라 다름)
+                // 만약 eaters 정보가 없다면 N빵으로 간주, 있다면 체크
+                // *간단화를 위해: 이 사람이 낸 돈에 기여한 항목 찾기*
+                // (정확한 eaters 로직이 복잡하므로, 여기선 '라운드 이름' 위주로 표시하되
+                // '일부'인 경우를 감지하는 로직을 시뮬레이션 합니다.)
+                
+                // 실제로는 items 안에 eaters 배열을 봐야 함. 
+                // 여기서는 UI 로직만 예시로 듭니다. 
+                // 만약 라운드 전체 N빵이면 -> "1차"
+                // 만약 라운드 중 일부만 먹었으면 -> "2차(소주, 맥주)"
+                
+                // (DB에 eaters 정보가 있다고 가정)
+                let totalItems = round.items.length;
+                let myItems = round.items.filter(item => {
+                    // eaters 필드가 없으면 전체 참여로 간주, 있으면 내 이름 포함 여부 확인
+                    return !item.eaters || item.eaters.includes(m.name);
+                });
+
+                if (myItems.length === totalItems && totalItems > 0) {
+                     myHistory.push(roundName); // 다 먹음 -> 깔끔하게 차수만
+                } else if (myItems.length > 0) {
+                    // 일부만 먹음 -> 메뉴 이름 나열
+                    let itemNames = myItems.map(i => i.iName);
+                    let detailStr = itemNames[0];
+                    if (itemNames.length > 1) detailStr += ` 외 ${itemNames.length - 1}건`;
+                    myHistory.push(`${roundName}(${detailStr})`);
+                }
+            });
+            memberDetails[m.name] = myHistory.join(", ");
         });
 
-        // HTML 조립
-        let html = `
-            <div class="header">
-                <div class="meeting-title">${data.title}</div>
-                <div class="total-amount">총 지출 ${data.total.toLocaleString()}원</div>
-            </div>
-        `;
-
-        if (data.bank) {
-            html += `<div class="bank-info-card">🏦 ${data.bank}</div>`;
-        }
-
-        // 2. 그룹별 카드 렌더링
+        // --- 렌더링 ---
         // 금액 큰 순서대로 정렬
-        const sortedKeys = Object.keys(groups).sort((a, b) => {
-            const amtA = parseInt(a.split('_')[0]);
-            const amtB = parseInt(b.split('_')[0]);
-            return amtB - amtA;
-        });
+        let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
 
-        sortedKeys.forEach(key => {
-            const group = groups[key];
-            const names = group.names.join(", ");
-            const count = group.names.length;
+        sortedAmounts.forEach(amt => {
+            let members = groups[amt];
+            let price = parseInt(amt);
+            if (price === 0) return; // 0원은 표시 안 함
+
+            // 카드 생성
+            let card = document.createElement('div');
+            card.className = 'card';
+
+            // 이름
+            let namesHtml = members.join(', ');
             
-            // 토스 송금 링크
-            const tossUrl = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${group.amount}`;
+            // 설명 (첫 번째 사람 기준으로 설명 생성 - 같은 금액이면 보통 같은 거 먹음)
+            // "1차, 2차(멜론) 포함" 처럼 표시
+            let desc = memberDetails[members[0]]; 
+            if(!desc) desc = "참여 내역 없음";
 
-            html += `
-                <div class="group-card">
-                    <div class="group-header">
-                        <div class="group-names">
-                            ${names}
-                        </div>
-                    </div>
-                    
-                    <div class="price-row">
-                        <div class="price-info">
-                            <div class="price-desc-badge">🏷️ ${group.desc}</div>
-                            ${count > 1 ? `<span class="badge-count">${count}명 1/N</span>` : ''}
-                        </div>
-                        <div class="price-value">${group.amount.toLocaleString()}원</div>
-                    </div>
+            // 1인당 금액 계산
+            let perPersonHtml = '';
+            if (members.length > 1) {
+                perPersonHtml = `<div class="per-person">${members.length}명 / 1인 ${price.toLocaleString()}원</div>`;
+            }
 
-                    <a href="${tossUrl}" class="btn-send">
-                        ${group.amount.toLocaleString()}원 보내기
-                    </a>
+            // 토스 송금 링크 (단일 송금이면 금액 고정, 여러명이면 각자 보낼 거니까 1인 금액)
+            // 토스 포맷: toss://send?bank=은행&accountNo=계좌&amount=금액
+            // 주의: 웹에서는 toss link가 잘 안먹힐 수 있으니 https 토스 링크 사용 권장
+            // 혹은 그냥 '송금' 버튼만 둠
+            let tossLink = `toss://send?amount=${price}&msg=${encodeURIComponent(data.title)}`;
+
+            card.innerHTML = `
+                <div class="names">${namesHtml}</div>
+                <div class="details-text">
+                    <span class="details-highlight">참여:</span> ${desc}
+                </div>
+                <div class="price-row">
+                    <div class="price-info">
+                        <div class="total-price">${(price * members.length).toLocaleString()}원</div>
+                        ${perPersonHtml}
+                    </div>
+                    <a href="${tossLink}" class="send-btn">송금</a>
                 </div>
             `;
+            container.appendChild(card);
         });
 
-        // 3. 상세 내역
-        html += `
-            <div class="details-section">
-                <div style="font-weight:bold; margin-bottom:12px; color:#333;">📋 상세 지출 내역</div>
-        `;
+        // 하단 전체 상세 내역 (옵션)
+        let detailsDiv = document.createElement('div');
+        detailsDiv.className = 'receipt-details';
+        detailsDiv.innerHTML = `<div class="receipt-title">📋 전체 상세 지출 내역</div>`;
         
-        if (data.details) {
-            data.details.forEach(round => {
-                html += `<div style="font-size:14px; font-weight:700; margin-top:12px; color:#555;">${round.rName}</div>`;
-                round.items.forEach(item => {
-                    html += `
-                        <div class="detail-item">
-                            <span>- ${item.iName}</span>
-                            <span>${item.price.toLocaleString()}원</span>
-                        </div>
-                    `;
-                });
+        data.details.forEach(r => {
+            detailsDiv.innerHTML += `<div style="font-weight:bold; margin-top:10px; font-size:13px;">${r.rName}</div>`;
+            r.items.forEach(i => {
+                detailsDiv.innerHTML += `
+                    <div class="receipt-row">
+                        <span>- ${i.iName}</span>
+                        <span>${i.price.toLocaleString()}원</span>
+                    </div>`;
             });
-        }
-        html += `</div>`;
-        html += `<div class="footer-safe">🔒 토스/카카오뱅크 앱으로 안전하게 연결됩니다.</div>`;
-
-        appDiv.innerHTML = html;
+        });
+        container.appendChild(detailsDiv);
     }
 </script>
-
 </body>
 </html>
