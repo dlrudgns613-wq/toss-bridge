@@ -27,7 +27,6 @@
         .container {
             max-width: 500px;
             width: 100%;
-            background-color: var(--bg); /* 카드 배경과 구분 */
         }
 
         /* 1. 헤더: 총액을 작게, 제목을 크게 */
@@ -52,10 +51,10 @@
         .header .total-amount {
             font-size: 16px;
             font-weight: 600;
-            color: var(--text-sub); /* 총액은 덜 강조 */
+            color: var(--text-sub);
         }
 
-        /* 2. 멤버 리스트: 카드형 디자인 */
+        /* 2. 멤버 리스트 */
         .member-list {
             display: flex;
             flex-direction: column;
@@ -87,10 +86,10 @@
         .member-amount {
             font-size: 18px;
             font-weight: 700;
-            color: var(--primary); /* 내 낼 돈만 파란색 강조 */
+            color: var(--primary);
         }
 
-        /* 3. 버튼: 금액을 명시하여 안심 제공 */
+        /* 3. 버튼 */
         .btn-send {
             background-color: var(--primary);
             color: var(--white);
@@ -118,10 +117,10 @@
             margin-bottom: 24px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             color: var(--primary);
             font-weight: 600;
-            justify-content: center;
         }
 
         .details-section {
@@ -141,7 +140,6 @@
         .loader { text-align: center; padding: 40px; color: var(--text-sub); }
         .error { color: #e02929; text-align: center; padding: 20px; }
         
-        /* 뱃지 (옵션) */
         .badge {
             font-size: 11px;
             background-color: #f2f4f6;
@@ -151,6 +149,11 @@
             margin-left: 8px;
         }
     </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="./js/firebase-config.js"></script>
 </head>
 <body>
 
@@ -158,27 +161,19 @@
     <div class="loader">정산 내역을 불러오는 중...</div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script>
+    // 3. firebase-config.js에 있는 함수 호출해서 DB 가져오기
+    let db;
+    try {
+        db = initFirebase(); // 개발자님이 만든 함수 호출!
+    } catch (e) {
+        console.error("Firebase 초기화 실패:", e);
+        document.getElementById('app').innerHTML = '<div class="error">설정 파일을 불러오지 못했습니다.</div>';
+    }
 
-    // ★ 개발자님의 Firebase 설정을 여기에 다시 넣어주세요!
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_AUTH_DOMAIN",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_STORAGE_BUCKET",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // URL에서 ?id=... 가져오기
+    // URL에서 ID 가져오기
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('id');
-
     const appDiv = document.getElementById('app');
 
     if (!docId) {
@@ -189,10 +184,11 @@
 
     async function loadData(id) {
         try {
-            const docRef = doc(db, "receipts", id);
-            const docSnap = await getDoc(docRef);
+            // Compat 버전은 db.collection().doc().get() 방식 사용
+            const docRef = db.collection("receipts").doc(id);
+            const docSnap = await docRef.get();
 
-            if (docSnap.exists()) {
+            if (docSnap.exists) {
                 const data = docSnap.data();
                 renderReceipt(data);
             } else {
@@ -207,7 +203,7 @@
     function renderReceipt(data) {
         const totalFormatted = data.total.toLocaleString();
         
-        // 1. 헤더 영역 (제목 강조, 총액 축소)
+        // 1. 헤더 (디자인 개선됨)
         let html = `
             <div class="header">
                 <div class="meeting-title">${data.title}</div>
@@ -216,7 +212,7 @@
             </div>
         `;
 
-        // 2. 은행 정보 (있으면 표시)
+        // 2. 은행 정보
         if (data.bank) {
             html += `
                 <div class="bank-info-card">
@@ -225,17 +221,13 @@
             `;
         }
 
-        // 3. 멤버 리스트 (카드형 + 버튼에 금액 표시)
+        // 3. 멤버 리스트
         html += '<div class="member-list">';
         
-        // 같은 금액끼리 묶기 로직은 유지하되, UI는 개별 카드처럼 보이게 할 수도 있고
-        // 현재 로직을 유지하면서 디자인만 바꿀 수도 있습니다. 
-        // 여기서는 "사용자 이름"을 확실히 보여주기 위해 개별 카드로 풉니다.
-        
         data.members.forEach(member => {
-            if (member.amount === 0) return; // 0원인 사람은 제외
+            if (member.amount === 0) return;
 
-            // 토스 송금 링크 생성
+            // 토스 송금 링크
             const tossUrl = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${member.amount}`;
             
             html += `
@@ -255,7 +247,7 @@
         });
         html += '</div>';
 
-        // 4. 상세 내역 (맨 아래로 배치, 의심 가는 사람만 보게)
+        // 4. 상세 내역
         html += `
             <div class="details-section">
                 <div style="font-weight:bold; margin-bottom:10px; color:#555;">📋 상세 지출 내역</div>
