@@ -111,7 +111,8 @@
 
     // Firestore 인스턴스 가져오기 (이미 초기화되었다고 가정)
     const db = firebase.firestore();
-
+    // ★★★ [해결책] 강제 연결 설정 추가 ★★★
+    db.settings({ experimentalForceLongPolling: true });
     // URL 파싱 및 데이터 로드 시작
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('id');
