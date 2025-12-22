@@ -3,188 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <title>Smart Split 정산</title>
     <style>
-        body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-color: #f2f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .receipt { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        h2 { margin: 0; color: #333; font-size: 20px; text-align: center; }
-        .total-price { font-size: 36px; font-weight: bold; color: #3182f6; margin: 10px 0 10px 0; text-align: center; }
-        .bank-box { background: #f9f9f9; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; color: #555; font-weight: 500; font-size: 15px; }
-        .bank-box span { display: block; font-size: 13px; color: #888; margin-bottom: 5px; }
-        .debug-info { font-size: 11px; color: #bbb; text-align: center; margin-bottom: 20px; } /* 디버그용 */
-        .section-title { font-size: 14px; color: #888; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .member-group { padding: 15px 0; border-bottom: 1px solid #f5f5f5; }
-        .group-names { font-size: 16px; font-weight: 500; color: #333; margin-bottom: 5px; line-height: 1.4; }
-        .group-amt-row { display: flex; justify-content: space-between; align-items: center; }
-        .group-amt { font-size: 16px; font-weight: bold; color: #3182f6; }
-        .toss-btn { font-size: 13px; color: #ffffff; background-color: #3182f6; padding: 6px 12px; border-radius: 8px; text-decoration: none; display: inline-block; }
-        .details-container { margin-top: 30px; background: #fafafa; padding: 15px; border-radius: 12px; }
-        .round-title { font-weight: bold; font-size: 15px; color: #333; margin-top: 15px; margin-bottom: 5px; }
-        .round-title:first-child { margin-top: 0; }
-        .item-row { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 3px; }
-        .footer { margin-top: 30px; font-size: 12px; color: #aaa; text-align: center; }
-        .loading { text-align: center; color: #888; margin-top: 50px; }
+        /* Toss / KakaoPay 스타일의 깔끔한 디자인 */
+        :root {
+            --primary: #3182f6; /* 토스 블루 */
+            --bg: #f2f4f6;
+            --text-main: #191f28;
+            --text-sub: #8b95a1;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background-color: var(--bg); /* 카드 배경과 구분 */
+        }
+
+        /* 1. 헤더: 총액을 작게, 제목을 크게 */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        
+        .header .meeting-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .header .total-amount-label {
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+
+        .header .total-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-sub); /* 총액은 덜 강조 */
+        }
+
+        /* 2. 멤버 리스트: 카드형 디자인 */
+        .member-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .member-card {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .member-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .member-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary); /* 내 낼 돈만 파란색 강조 */
+        }
+
+        /* 3. 버튼: 금액을 명시하여 안심 제공 */
+        .btn-send {
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            transition: opacity 0.2s;
+        }
+
+        .btn-send:active {
+            opacity: 0.8;
+        }
+
+        /* 4. 은행 정보 및 상세 내역 */
+        .bank-info-card {
+            background-color: #e8f3ff;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+            font-weight: 600;
+            justify-content: center;
+        }
+
+        .details-section {
+            margin-top: 40px;
+            border-top: 1px dashed #d1d6db;
+            padding-top: 20px;
+        }
+        
+        .detail-item {
+            font-size: 13px;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .loader { text-align: center; padding: 40px; color: var(--text-sub); }
+        .error { color: #e02929; text-align: center; padding: 20px; }
+        
+        /* 뱃지 (옵션) */
+        .badge {
+            font-size: 11px;
+            background-color: #f2f4f6;
+            color: #6b7684;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
 
-<div class="receipt">
-    <h2 id="receipt-title">로딩 중...</h2>
-    <div class="total-price" id="receipt-total"></div>
-    
-    <div id="debug-area" class="debug-info"></div>
-
-    <div id="bank-area" class="bank-box" style="display:none;">
-        <span>입금 계좌</span>
-        <div id="bank-text"></div>
-    </div>
-    <div class="section-title">멤버별 정산 금액</div>
-    <div id="list-container">
-        <div class="loading">내역을 불러오고 있습니다...</div>
-    </div>
-    <div id="details-area" class="details-container" style="display:none;">
-        <div class="section-title" style="border:none; padding:0; margin-bottom:10px;">🧾 상세 지출 내역</div>
-        <div id="details-list"></div>
-    </div>
-    <div class="footer">Smart Split</div>
+<div class="container" id="app">
+    <div class="loader">정산 내역을 불러오는 중...</div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="./js/firebase-config.js"></script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<script>
-    const db = initFirebase(); 
-    const params = new URLSearchParams(window.location.search);
-    const docId = params.get('id');
+    // ★ 개발자님의 Firebase 설정을 여기에 다시 넣어주세요!
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_STORAGE_BUCKET",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
 
-    // 1. 만능 은행 코드 찾기
-    function findBankCode(inputName) {
-        if (!inputName) return "";
-        const s = inputName.replace(/\s+/g, '').replace(/은행/g, '').toLowerCase();
-        
-        // 주요 은행 코드 매핑
-        if (s.includes('농협') || s.includes('nh')) return "011";
-        if (s.includes('국민') || s.includes('kb')) return "004";
-        if (s.includes('카카오') || s.includes('kakao') || s.includes('카뱅')) return "090";
-        if (s.includes('토스') || s.includes('toss')) return "092";
-        if (s.includes('신한') || s.includes('제주')) return "088";
-        if (s.includes('우리')) return "020";
-        if (s.includes('기업') || s.includes('ibk')) return "003";
-        if (s.includes('하나') || s.includes('keb')) return "081";
-        if (s.includes('새마을') || s.includes('kfcc')) return "045";
-        if (s.includes('부산')) return "032";
-        if (s.includes('대구') || s.includes('im')) return "031";
-        if (s.includes('케이') || s.includes('kbank')) return "089";
-        if (s.includes('신협')) return "048";
-        if (s.includes('우체국')) return "071";
-        if (s.includes('sc') || s.includes('제일')) return "023";
-        if (s.includes('광주')) return "034";
-        if (s.includes('전북')) return "037";
-        if (s.includes('수협')) return "007";
-        if (s.includes('산업')) return "002";
-        return "";
-    }
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    // 2. 계좌번호 추출
-    function extractAccountNumber(fullText) {
-        if (!fullText) return "";
-        const match = fullText.match(/[0-9-]{10,}/);
-        return match ? match[0].replace(/-/g, '') : "";
-    }
+    // URL에서 ?id=... 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const docId = urlParams.get('id');
 
-    if (docId) {
-        db.collection("receipts").doc(docId).get().then((doc) => {
-            if (doc.exists) {
-                renderReceipt(doc.data());
-            } else {
-                alert("삭제된 영수증입니다.");
-            }
-        });
+    const appDiv = document.getElementById('app');
+
+    if (!docId) {
+        appDiv.innerHTML = '<div class="error">잘못된 접근입니다. (ID 없음)</div>';
     } else {
-        document.getElementById('receipt-title').innerText = "잘못된 접근";
+        loadData(docId);
+    }
+
+    async function loadData(id) {
+        try {
+            const docRef = doc(db, "receipts", id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                renderReceipt(data);
+            } else {
+                appDiv.innerHTML = '<div class="error">정산 내역을 찾을 수 없습니다.</div>';
+            }
+        } catch (e) {
+            console.error(e);
+            appDiv.innerHTML = `<div class="error">오류 발생: ${e.message}</div>`;
+        }
     }
 
     function renderReceipt(data) {
-        document.getElementById('receipt-title').innerText = data.title;
-        document.getElementById('receipt-total').innerText = Number(data.total).toLocaleString() + "원";
-
-        let fullBankString = ""; 
-        if (data.bank && data.bank.trim() !== "") {
-            document.getElementById('bank-area').style.display = 'block';
-            document.getElementById('bank-text').innerText = data.bank;
-            fullBankString = data.bank;
-        }
-
-        // [진단] 최종 인식된 값 확인
-        let finalAccountNo = "";
-        if (data.accountNumber && data.accountNumber.trim() !== "") {
-            finalAccountNo = data.accountNumber.replace(/[^0-9]/g, '');
-        } else {
-            finalAccountNo = extractAccountNumber(fullBankString);
-        }
-
-        let finalBankCode = findBankCode(data.bankName || fullBankString);
+        const totalFormatted = data.total.toLocaleString();
         
-        // 화면에 작게 표시 (테스트 후 지우셔도 됩니다)
-        document.getElementById('debug-area').innerText = `인식된 은행: ${finalBankCode} / 계좌: ${finalAccountNo}`;
+        // 1. 헤더 영역 (제목 강조, 총액 축소)
+        let html = `
+            <div class="header">
+                <div class="meeting-title">${data.title}</div>
+                <div class="total-amount-label">전체 지출 금액</div>
+                <div class="total-amount">${totalFormatted}원</div>
+            </div>
+        `;
 
-        const groups = {};
-        data.members.forEach(member => {
-            if (member.amount === 0) return;
-            if (!groups[member.amount]) groups[member.amount] = [];
-            groups[member.amount].push(member.name);
-        });
-
-        const sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
-        const container = document.getElementById('list-container');
-        container.innerHTML = ""; 
-
-        sortedAmounts.forEach(amount => {
-            const memberNames = groups[amount];
-            const namesText = memberNames.join(", ");
-            // ★ '각' 표기 로직 (1명이면 생략)
-            let priceLabel = memberNames.length > 1 ? "각 " + Number(amount).toLocaleString() + "원" : Number(amount).toLocaleString() + "원";
-
-            // ★★★ [핵심 수정] URL 인코딩 적용 ★★★
-            // 1. msg(제목)에 encodeURIComponent 적용 -> 띄어쓰기 문제 해결
-            // 2. bank와 bankCode 둘 다 보냄 -> 토스 버전 호환성 해결
-            const safeTitle = encodeURIComponent(data.title); 
-            const tossUrl = `supertoss://send?bank=${finalBankCode}&bankCode=${finalBankCode}&accountNo=${finalAccountNo}&amount=${amount}&msg=${safeTitle}`;
-
-            const div = document.createElement('div');
-            div.className = 'member-group';
-            div.innerHTML = `
-                <div class="group-names">${namesText}</div>
-                <div class="group-amt-row">
-                    <span class="group-amt">${priceLabel}</span>
-                    <a href="${tossUrl}" class="toss-btn">송금 ></a>
+        // 2. 은행 정보 (있으면 표시)
+        if (data.bank) {
+            html += `
+                <div class="bank-info-card">
+                    🏦 ${data.bank}
                 </div>
             `;
-            container.appendChild(div);
-        });
+        }
 
-        // 상세 내역
-        if (data.details && data.details.length > 0) {
-            document.getElementById('details-area').style.display = 'block';
-            const detailsList = document.getElementById('details-list');
+        // 3. 멤버 리스트 (카드형 + 버튼에 금액 표시)
+        html += '<div class="member-list">';
+        
+        // 같은 금액끼리 묶기 로직은 유지하되, UI는 개별 카드처럼 보이게 할 수도 있고
+        // 현재 로직을 유지하면서 디자인만 바꿀 수도 있습니다. 
+        // 여기서는 "사용자 이름"을 확실히 보여주기 위해 개별 카드로 풉니다.
+        
+        data.members.forEach(member => {
+            if (member.amount === 0) return; // 0원인 사람은 제외
+
+            // 토스 송금 링크 생성
+            const tossUrl = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${member.amount}`;
+            
+            html += `
+                <div class="member-card">
+                    <div class="card-top">
+                        <div class="member-name">
+                            ${member.name} 님
+                            <span class="badge">정산 대상</span>
+                        </div>
+                        <div class="member-amount">${member.amount.toLocaleString()}원</div>
+                    </div>
+                    <a href="${tossUrl}" class="btn-send">
+                        ${member.amount.toLocaleString()}원 송금하기 👉
+                    </a>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // 4. 상세 내역 (맨 아래로 배치, 의심 가는 사람만 보게)
+        html += `
+            <div class="details-section">
+                <div style="font-weight:bold; margin-bottom:10px; color:#555;">📋 상세 지출 내역</div>
+        `;
+        
+        if (data.details) {
             data.details.forEach(round => {
-                const roundBox = document.createElement('div');
-                roundBox.innerHTML = `<div class="round-title">📍 ${round.rName}</div>`;
-                if(round.items) {
-                    round.items.forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = 'item-row';
-                        row.innerHTML = `<span>- ${item.iName}</span><span>${Number(item.price).toLocaleString()}</span>`;
-                        roundBox.appendChild(row);
-                    });
-                }
-                detailsList.appendChild(roundBox);
+                html += `<div style="font-size:14px; font-weight:600; margin-top:8px;">${round.rName}</div>`;
+                round.items.forEach(item => {
+                    html += `
+                        <div class="detail-item">
+                            <span>- ${item.iName}</span>
+                            <span>${item.price.toLocaleString()}원</span>
+                        </div>
+                    `;
+                });
             });
         }
+        html += `</div>`;
+
+        appDiv.innerHTML = html;
     }
 </script>
 
