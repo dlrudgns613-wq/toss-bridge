@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Split 정산</title>
+
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
@@ -93,29 +94,11 @@
             line-height: 1.4;
         }
 
-        /* 마이크로 카피 (태그) */
-        .badge {
-            display: inline-block;
-            background-color: #f2f4f6;
-            color: #6b7684;
-            font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 600;
-            vertical-align: middle;
-            margin-left: 6px;
-        }
-
         .price-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 16px;
-        }
-
-        .price-label {
-            font-size: 14px;
-            color: var(--text-sub);
         }
 
         .price-value {
@@ -169,6 +152,37 @@
 
         .loader { text-align: center; padding: 40px; color: var(--text-sub); }
         .error { color: #e02929; text-align: center; padding: 20px; }
+
+        /* ▼▼▼▼▼ 아까 물어보신 CSS를 여기에 합쳤습니다! ▼▼▼▼▼ */
+        
+        /* 신뢰를 주는 꼬리표 스타일 */
+        .price-desc-badge {
+            display: inline-block;
+            background-color: #e8f3ff; /* 연한 파랑 배경 */
+            color: #1b64da; /* 진한 파랑 글씨 */
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .badge-count {
+            font-size: 11px;
+            color: #8b95a1;
+            background-color: #f2f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        .price-info {
+            display: flex;
+            flex-direction: column; /* 태그가 위에 오도록 */
+            align-items: flex-start;
+        }
+        /* ▲▲▲▲▲ 여기까지 추가됨 ▲▲▲▲▲ */
+
     </style>
 </head>
 <body>
@@ -214,16 +228,25 @@
     }
 
     function renderReceipt(data) {
-        // 1. 같은 금액끼리 그룹핑 (개발자님이 원하신 그 로직!)
+        // 1. 같은 금액 & 같은 사유(desc)끼리 그룹핑
         const groups = {};
         data.members.forEach(member => {
             if (member.amount === 0) return;
-            const amt = member.amount;
-            if (!groups[amt]) groups[amt] = [];
-            groups[amt].push(member.name);
+            
+            // 키를 '금액_사유'로 만들어서 완벽하게 구분
+            const key = `${member.amount}_${member.desc}`;
+            
+            if (!groups[key]) {
+                groups[key] = {
+                    amount: member.amount,
+                    desc: member.desc || "참여", // desc가 없으면 기본값
+                    names: []
+                };
+            }
+            groups[key].names.push(member.name);
         });
 
-        // HTML 조립 시작
+        // HTML 조립
         let html = `
             <div class="header">
                 <div class="meeting-title">${data.title}</div>
@@ -237,15 +260,19 @@
 
         // 2. 그룹별 카드 렌더링
         // 금액 큰 순서대로 정렬
-        const sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
+        const sortedKeys = Object.keys(groups).sort((a, b) => {
+            const amtA = parseInt(a.split('_')[0]);
+            const amtB = parseInt(b.split('_')[0]);
+            return amtB - amtA;
+        });
 
-        sortedAmounts.forEach(amount => {
-            const names = groups[amount].join(", ");
-            const count = groups[amount].length;
-            const numAmount = parseInt(amount);
+        sortedKeys.forEach(key => {
+            const group = groups[key];
+            const names = group.names.join(", ");
+            const count = group.names.length;
             
             // 토스 송금 링크
-            const tossUrl = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${amount}`;
+            const tossUrl = `supertoss://send?bank=${data.bankName}&accountNo=${data.accountNumber}&amount=${group.amount}`;
 
             html += `
                 <div class="group-card">
@@ -256,21 +283,21 @@
                     </div>
                     
                     <div class="price-row">
-                        <div class="price-label">
-                            <span class="badge">1/N 정산</span>
-                            ${count > 1 ? `<span class="badge">${count}명</span>` : ''}
+                        <div class="price-info">
+                            <div class="price-desc-badge">🏷️ ${group.desc}</div>
+                            ${count > 1 ? `<span class="badge-count">${count}명 1/N</span>` : ''}
                         </div>
-                        <div class="price-value">${numAmount.toLocaleString()}원</div>
+                        <div class="price-value">${group.amount.toLocaleString()}원</div>
                     </div>
 
                     <a href="${tossUrl}" class="btn-send">
-                        ${numAmount.toLocaleString()}원 보내기
+                        ${group.amount.toLocaleString()}원 보내기
                     </a>
                 </div>
             `;
         });
 
-        // 3. 상세 내역 (아래로 내림)
+        // 3. 상세 내역
         html += `
             <div class="details-section">
                 <div style="font-weight:bold; margin-bottom:12px; color:#333;">📋 상세 지출 내역</div>
@@ -290,13 +317,7 @@
             });
         }
         html += `</div>`;
-
-        // 4. 안심 문구
-        html += `
-            <div class="footer-safe">
-                🔒 토스/카카오뱅크 앱으로 안전하게 연결됩니다.
-            </div>
-        `;
+        html += `<div class="footer-safe">🔒 토스/카카오뱅크 앱으로 안전하게 연결됩니다.</div>`;
 
         appDiv.innerHTML = html;
     }
