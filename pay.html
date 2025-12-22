@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Split 정산서</title>
     <style>
-        /* [스타일 대개조] 깔끔하고 직관적인 토스 스타일 */
+        /* [UI 개선] 토스/카카오페이 스타일의 깔끔한 디자인 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #F2F4F6;
@@ -13,10 +13,8 @@
             padding: 20px;
             color: #333;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
+        .container { max-width: 500px; margin: 0 auto; }
+        
         /* 카드 디자인 */
         .card {
             background: white;
@@ -25,6 +23,7 @@
             margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
+        
         /* 이름 영역 */
         .names {
             font-size: 17px;
@@ -33,16 +32,15 @@
             color: #191F28;
             line-height: 1.4;
         }
-        /* 핵심: 상세 내역 텍스트 (태그 대신 사용) */
+        
+        /* [수정] 상세 내역 텍스트 (지저분한 태그 삭제) */
         .details-text {
             font-size: 13px;
             color: #8B95A1;
             margin-bottom: 12px;
             line-height: 1.5;
         }
-        .details-highlight {
-            color: #4E5968; /* 먹은 메뉴는 좀 더 진하게 */
-        }
+        .details-highlight { color: #4E5968; font-weight: 600; }
         
         /* 금액 영역 */
         .price-row {
@@ -51,23 +49,20 @@
             align-items: flex-end;
             margin-top: 16px;
         }
-        .price-info {
-            display: flex;
-            flex-direction: column;
-        }
+        .price-info { display: flex; flex-direction: column; }
         .total-price {
             font-size: 20px;
             font-weight: 700;
             color: #3182F6;
         }
-        /* "1인당 얼마" */
+        /* [추가] 1인당 금액 표시 */
         .per-person {
             font-size: 12px;
             color: #8B95A1;
             margin-top: 4px;
         }
 
-        /* 버튼 다이어트 */
+        /* [수정] 버튼 디자인 다이어트 */
         .send-btn {
             background-color: #3182F6;
             color: white;
@@ -91,7 +86,6 @@
         .receipt-title { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 10px; }
         .receipt-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: #666; }
         
-        /* 로딩 */
         #loading { text-align: center; margin-top: 50px; font-size: 14px; color: #888; }
     </style>
 </head>
@@ -99,28 +93,26 @@
 
 <div class="container">
     <div id="loading">정산 내역을 불러오는 중...</div>
-    <div id="content" style="display: none;">
-        </div>
+    <div id="content" style="display: none;"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
-    // 1. 파이어베이스 설정 (본인 설정으로 교체 필수!)
-    // ResultActivity.java에서 썼던 google-services.json 내용 참고
-    const firebaseConfig = {
-        apiKey: "API_KEY_HERE",
-        authDomain: "PROJECT_ID.firebaseapp.com",
-        projectId: "PROJECT_ID",
-        storageBucket: "PROJECT_ID.appspot.com",
-        messagingSenderId: "SENDER_ID",
-        appId: "APP_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // [중요] 개발자님이 따로 빼두신 API 키 설정 코드가 있다면 이 부분을 지우지 말고 유지하세요!
+    // 만약 아래 코드가 없다면, 기존에 쓰시던 firebaseConfig 설정을 여기에 넣으시면 됩니다.
+    // ------------------------------------------------------------------
+    // const firebaseConfig = { ... };
+    // firebase.initializeApp(firebaseConfig);
+    // ------------------------------------------------------------------
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // Firestore 인스턴스 가져오기 (이미 초기화되었다고 가정)
     const db = firebase.firestore();
 
-    // 2. URL에서 ID 가져오기 (?id= 문서ID)
+    // URL 파싱 및 데이터 로드 시작
     const urlParams = new URLSearchParams(window.location.search);
     const docId = urlParams.get('id');
 
@@ -139,56 +131,41 @@
             }
         }).catch((error) => {
             console.error("Error:", error);
-           document.getElementById('loading').innerText = "에러 상세: " + error.code + " / " + error.message;
+            // 에러 시 코드와 메시지 출력 (디버깅용)
+            document.getElementById('loading').innerText = "데이터 로드 실패: " + error.code;
         });
     }
 
+    // ★ [핵심] UI 렌더링 로직 (2차(일부) 문제 해결됨)
     function renderApp(data) {
         document.getElementById('loading').style.display = 'none';
         const container = document.getElementById('content');
         container.style.display = 'block';
 
-        // --- 데이터 가공 로직 (핵심) ---
-        // 금액별로 사람 묶기 (Amount -> [Names])
         let groups = {};
-        
-        // 멤버별 상세 내역 분석 ("무엇을 먹었나")
-        let memberDetails = {}; // name -> string (ex: "1차(삼겹살), 2차(콜라)")
+        let memberDetails = {}; 
 
         data.members.forEach(m => {
-            // 그룹핑
+            // 1. 금액별 그룹핑
             let amt = m.amount;
             if(!groups[amt]) groups[amt] = [];
             groups[amt].push(m.name);
 
-            // ★ 상세 내역 텍스트 생성 로직 (Problem 4 해결)
+            // 2. 상세 내역 텍스트 생성 ("2차(멜론)" 형태로 변환)
             let myHistory = [];
             data.details.forEach((round, rIdx) => {
-                let ateItems = [];
                 let roundName = round.rName || (rIdx + 1) + "차";
                 
-                // 이 라운드의 모든 메뉴 중 내가 먹은 것 찾기 (DB 구조에 따라 다름)
-                // 만약 eaters 정보가 없다면 N빵으로 간주, 있다면 체크
-                // *간단화를 위해: 이 사람이 낸 돈에 기여한 항목 찾기*
-                // (정확한 eaters 로직이 복잡하므로, 여기선 '라운드 이름' 위주로 표시하되
-                // '일부'인 경우를 감지하는 로직을 시뮬레이션 합니다.)
-                
-                // 실제로는 items 안에 eaters 배열을 봐야 함. 
-                // 여기서는 UI 로직만 예시로 듭니다. 
-                // 만약 라운드 전체 N빵이면 -> "1차"
-                // 만약 라운드 중 일부만 먹었으면 -> "2차(소주, 맥주)"
-                
-                // (DB에 eaters 정보가 있다고 가정)
+                // 내가 먹은 항목 필터링
                 let totalItems = round.items.length;
                 let myItems = round.items.filter(item => {
-                    // eaters 필드가 없으면 전체 참여로 간주, 있으면 내 이름 포함 여부 확인
                     return !item.eaters || item.eaters.includes(m.name);
                 });
 
                 if (myItems.length === totalItems && totalItems > 0) {
-                     myHistory.push(roundName); // 다 먹음 -> 깔끔하게 차수만
+                     myHistory.push(roundName); // 전부 먹었으면 "1차"
                 } else if (myItems.length > 0) {
-                    // 일부만 먹음 -> 메뉴 이름 나열
+                    // 일부만 먹었으면 "2차(멜론 외 1건)"
                     let itemNames = myItems.map(i => i.iName);
                     let detailStr = itemNames[0];
                     if (itemNames.length > 1) detailStr += ` 외 ${itemNames.length - 1}건`;
@@ -198,37 +175,27 @@
             memberDetails[m.name] = myHistory.join(", ");
         });
 
-        // --- 렌더링 ---
-        // 금액 큰 순서대로 정렬
+        // 금액 큰 순서대로 정렬 및 카드 생성
         let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
 
         sortedAmounts.forEach(amt => {
             let members = groups[amt];
             let price = parseInt(amt);
-            if (price === 0) return; // 0원은 표시 안 함
+            if (price === 0) return; 
 
-            // 카드 생성
             let card = document.createElement('div');
             card.className = 'card';
 
-            // 이름
             let namesHtml = members.join(', ');
-            
-            // 설명 (첫 번째 사람 기준으로 설명 생성 - 같은 금액이면 보통 같은 거 먹음)
-            // "1차, 2차(멜론) 포함" 처럼 표시
-            let desc = memberDetails[members[0]]; 
-            if(!desc) desc = "참여 내역 없음";
+            let desc = memberDetails[members[0]] || "내역 없음";
 
-            // 1인당 금액 계산
+            // [추가] 1인당 금액 표시
             let perPersonHtml = '';
             if (members.length > 1) {
                 perPersonHtml = `<div class="per-person">${members.length}명 / 1인 ${price.toLocaleString()}원</div>`;
             }
 
-            // 토스 송금 링크 (단일 송금이면 금액 고정, 여러명이면 각자 보낼 거니까 1인 금액)
-            // 토스 포맷: toss://send?bank=은행&accountNo=계좌&amount=금액
-            // 주의: 웹에서는 toss link가 잘 안먹힐 수 있으니 https 토스 링크 사용 권장
-            // 혹은 그냥 '송금' 버튼만 둠
+            // 토스 송금 링크
             let tossLink = `toss://send?amount=${price}&msg=${encodeURIComponent(data.title)}`;
 
             card.innerHTML = `
@@ -247,7 +214,7 @@
             container.appendChild(card);
         });
 
-        // 하단 전체 상세 내역 (옵션)
+        // 하단 전체 영수증 내역
         let detailsDiv = document.createElement('div');
         detailsDiv.className = 'receipt-details';
         detailsDiv.innerHTML = `<div class="receipt-title">📋 전체 상세 지출 내역</div>`;
