@@ -8,7 +8,8 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script src="js/firebase-config.js"></script>
+    
+    <script src="js/firebase-config.js" onerror="alert('js/firebase-config.js 파일을 찾을 수 없습니다! 경로를 확인해주세요.')"></script>
 
     <style>
         body {
@@ -22,12 +23,9 @@
             padding: 20px 10px;
         }
 
-        .container {
-            width: 100%;
-            max-width: 420px;
-        }
+        .container { width: 100%; max-width: 420px; }
 
-        /* 1. 상단 요약 카드 (총액 & 계좌) */
+        /* 1. 상단 요약 */
         .summary-card {
             background-color: #FFF;
             border-radius: 16px;
@@ -36,85 +34,66 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.05);
             margin-bottom: 20px;
         }
-
         .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
         .meeting-date { font-size: 13px; color: #8B95A1; }
         .total-amount { font-size: 26px; font-weight: 700; color: #333D4B; margin-top: 16px; font-family: 'Roboto Mono', monospace; }
 
+        /* 계좌 복사 박스 */
         .account-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #F9FAFB;
-            padding: 10px 14px;
-            border-radius: 8px;
-            margin-top: 20px;
-            font-size: 13px;
-            color: #4E5968;
+            display: flex; align-items: center; justify-content: center;
+            background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px;
+            margin-top: 20px; font-size: 13px; color: #4E5968;
         }
         .btn-copy {
             background: none; border: 1px solid #D1D6DB; border-radius: 4px;
             padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer;
         }
 
-        /* 2. 개인별 정산 카드 (그룹) */
+        /* 2. 그룹 카드 */
         .group-card {
             background-color: #FFF;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-            border: 1px solid #F2F4F6;
+            border: 1px solid #E5E8EB;
         }
+        .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; }
 
-        .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 10px; line-height: 1.4; }
-        
-        /* ★ 태그 스타일 (괄호 삭제, 깔끔한 박스) */
-        .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+        /* ★ 태그 스타일 (회색 박스, 괄호 없음) */
+        .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag {
-            background-color: #F2F4F6; color: #4E5968;
-            font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 500;
+            background-color: #F2F4F6; color: #555;
+            font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;
         }
-        /* '술 제외' 같은 키워드 있으면 색상 포인트 */
         .round-tag.special { background-color: #FFF0F0; color: #E94848; }
 
-        .action-row { display: flex; justify-content: space-between; align-items: center; }
-        
-        /* "1인 각 17,920원" 통합 스타일 */
-        .price-text { font-size: 14px; color: #333D4B; font-weight: 500; }
-        .price-text strong { color: #3182F6; font-weight: 700; font-family: 'Roboto Mono', monospace; font-size: 17px; }
+        /* 가격 + 버튼 한 줄 */
+        .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
+        .price-text { font-size: 14px; color: #333; }
+        .price-text strong { color: #3182F6; font-size: 16px; font-weight: 700; font-family: 'Roboto Mono', monospace; }
 
+        /* 송금 버튼 (작게) */
         .btn-send {
             background-color: #E8F3FF; color: #3182F6;
-            padding: 7px 14px; border-radius: 6px; text-decoration: none;
+            padding: 6px 12px; border-radius: 6px; text-decoration: none;
             font-size: 13px; font-weight: 700;
         }
 
-        /* 3. ★ 하단 상세 영수증 (부활!) */
-        .receipt-detail-section {
-            margin-top: 40px;
-            background-color: #FFF;
-            padding: 25px 20px;
+        /* 3. ★ 상세 영수증 (부활) */
+        .receipt-detail {
+            margin-top: 40px; background-color: #FFF; padding: 25px 20px;
             position: relative;
-            /* 영수증 톱니바퀴 효과 */
+            /* 찢어진 종이 효과 */
             background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%);
-            background-position: top center;
-            background-size: 20px 20px;
-            background-repeat: repeat-x;
-            border-bottom: 2px dashed #EEE; /* 끝부분 느낌 */
-            padding-top: 40px; /* 톱니 공간 확보 */
+            background-position: top center; background-size: 20px 20px; background-repeat: repeat-x;
+            padding-top: 40px;
         }
+        .detail-header { text-align: center; font-size: 13px; font-weight: 700; color: #999; margin-bottom: 20px; letter-spacing: 1px; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
+        .round-header { font-weight: bold; color: #333; margin: 15px 0 5px 0; font-size: 13px; }
 
-        .detail-title { text-align: center; font-size: 14px; font-weight: 700; color: #888; margin-bottom: 20px; letter-spacing: 1px; }
-        
-        .receipt-list { font-size: 13px; color: #555; }
-        .receipt-row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
-        .receipt-row.header { font-weight: bold; border-bottom: 2px solid #DDD; margin-bottom: 12px; color: #333; }
-        .receipt-item-name { flex: 1; }
-        .receipt-item-price { font-family: 'Roboto Mono', monospace; font-weight: 500; }
-
-        .loading { text-align: center; padding: 60px; color: #8B95A1; font-size: 14px; }
-        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
+        .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
@@ -123,12 +102,17 @@
 <body>
 
     <div class="container" id="receiptArea">
-        <div class="loading">내역 불러오는 중...</div>
+        <div class="loading">내역 불러오는 중...<br>(계속 흰 화면이면 firebase-config.js 경로를 확인하세요)</div>
     </div>
-    
     <div id="toast">계좌번호가 복사되었습니다.</div>
 
     <script>
+        // 404 방지 안전장치
+        if (typeof initFirebase !== 'function') {
+            document.getElementById('receiptArea').innerHTML = "<div class='loading' style='color:red'>설정 파일(js/firebase-config.js)을 찾을 수 없습니다.<br>파일 위치를 확인해주세요.</div>";
+            throw new Error("Firebase config missing");
+        }
+
         const db = initFirebase();
         const urlParams = new URLSearchParams(window.location.search);
         const docId = urlParams.get('id');
@@ -144,7 +128,7 @@
         }
 
         function renderPage(data) {
-            // --- 1. 그룹화 로직 ---
+            // 1. 그룹화
             let groups = {};
             data.members.forEach(member => {
                 if (member.amount === 0) return;
@@ -153,31 +137,27 @@
                 groups[amt].members.push(member.name);
             });
 
-            // --- 2. 태그 생성 로직 (피드백: 짧게, 괄호 없이) ---
+            // 2. 태그 HTML 생성 (괄호 제거, 비용 제거)
             let tagsHtml = "";
             if (data.details && Array.isArray(data.details)) {
                 data.details.forEach((round, idx) => {
-                    // ★ 핵심 수정: "멜론 샐러드 외 3건" 삭제. 그냥 라운드 이름만 씀.
-                    // 앱에서 "1차", "2차", "3차(술 제외)"라고 입력한 그 제목 그대로 가져옴.
-                    // 뒤에 "비용" 같은 글자가 붙어있으면 제거 (개발자님 요청)
+                    // "1차 비용", "1차(술 제외) 비용" -> "1차", "1차(술 제외)"
                     let title = round.rName || (idx + 1) + "차";
                     title = title.replace("비용", "").trim(); 
                     
                     let badgeClass = "round-tag";
-                    // '제외' 키워드 있으면 빨간색 포인트
                     if(title.includes("제외") || title.includes("No")) badgeClass += " special";
                     
                     tagsHtml += `<span class="${badgeClass}">${title}</span>`;
                 });
             }
 
-            // --- 3. HTML 렌더링 ---
+            // 3. HTML 조립
             let html = `
                 <div class="summary-card">
                     <div class="meeting-title">${data.title}</div>
                     <div class="meeting-date">${data.date}</div>
                     <div class="total-amount">Total ₩${Number(data.total).toLocaleString()}</div>
-                    
                     <div class="account-box">
                         <span>${data.bankName || "은행"} ${data.accountNumber || ""}</span>
                         <button class="btn-copy" onclick="copyAccount('${data.accountNumber}')">복사</button>
@@ -185,7 +165,6 @@
                 </div>
             `;
 
-            // 개인별(그룹별) 카드 리스트
             let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
             sortedAmounts.forEach(amt => {
                 let group = groups[amt];
@@ -193,7 +172,6 @@
                 let count = group.members.length;
                 let perPerson = Number(amt).toLocaleString();
                 
-                // 토스 링크
                 let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
                 let tossLink = `supertoss://send?amount=${amt}${bankParam}${accountParam}`;
@@ -206,49 +184,37 @@
                         
                         <div class="action-row">
                             <div class="price-text">1인 각 <strong>${perPerson}원</strong></div>
-                            <a href="${tossLink}" class="btn-send">송금</a>
+                            <a href="${tossLink}" class="btn-send">송금하기</a>
                         </div>
                     </div>
                 `;
             });
 
-            // --- 4. ★ 상세 영수증 (부활!!) ---
+            // ★ 4. 상세 내역 (부활)
             html += `
-                <div class="receipt-detail-section">
-                    <div class="detail-title">─── 상세 내역 (RECEIPT) ───</div>
-                    <div class="receipt-list">
-                        <div class="receipt-row header">
-                            <span class="receipt-item-name">품명</span>
-                            <span class="receipt-item-price">금액</span>
-                        </div>
+                <div class="receipt-detail">
+                    <div class="detail-header">── 상세 영수증 (RECEIPT) ──</div>
             `;
             
-            // 상세 품목 리스트업
-            if (data.details && Array.isArray(data.details)) {
+            if (data.details) {
                 data.details.forEach(round => {
-                    // 라운드 구분선
-                    html += `<div style="margin:15px 0 5px 0; font-weight:bold; color:#333;">[ ${round.rName || '차수'} ]</div>`;
-                    
-                    if(round.items && Array.isArray(round.items)) {
+                    let rTitle = round.rName.replace("비용", "").trim();
+                    html += `<div class="round-header">[ ${rTitle} ]</div>`;
+                    if(round.items) {
                         round.items.forEach(item => {
                             html += `
                                 <div class="receipt-row">
-                                    <span class="receipt-item-name">${item.iName || item.name}</span>
-                                    <span class="receipt-item-price">${Number(item.price).toLocaleString()}</span>
-                                </div>
-                            `;
+                                    <span>${item.iName || item.name}</span>
+                                    <span>${Number(item.price).toLocaleString()}</span>
+                                </div>`;
                         });
                     }
                 });
             }
 
             html += `
-                    </div>
-                    <div style="text-align:center; margin-top:30px; font-size:11px; color:#AAA;">
-                        위 내역을 확인 후 정산해주세요.<br>Smart Split
-                    </div>
-                </div>
-            `;
+                <div style="text-align:center; margin-top:30px; font-size:11px; color:#AAA;">Smart Split</div>
+                </div>`;
 
             document.getElementById('receiptArea').innerHTML = html;
         }
