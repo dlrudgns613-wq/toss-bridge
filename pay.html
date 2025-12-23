@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
-    <script src="firebase-config.js"></script>
+    <script src="js/firebase-config.js"></script>
 
     <style>
         body {
@@ -25,7 +25,7 @@
 
         .container { width: 100%; max-width: 420px; }
 
-        /* 요약 카드 */
+        /* 1. 상단 요약 카드 */
         .summary-card {
             background-color: #FFF;
             border-radius: 16px;
@@ -38,6 +38,7 @@
         .meeting-date { font-size: 13px; color: #8B95A1; }
         .total-amount { font-size: 26px; font-weight: 700; color: #333D4B; margin-top: 16px; font-family: 'Roboto Mono', monospace; }
 
+        /* 계좌 복사 박스 */
         .account-box {
             display: flex; align-items: center; justify-content: center;
             background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px;
@@ -48,7 +49,7 @@
             padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer;
         }
 
-        /* 그룹 카드 */
+        /* 2. 그룹 카드 */
         .group-card {
             background-color: #FFF;
             border-radius: 12px;
@@ -58,29 +59,33 @@
         }
         .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; }
 
-        /* ★ 태그 스타일 (개발자님 요청: 괄호 삭제, 회색 박스만) */
+        /* ★ 태그 스타일 (개발자님 요청: 괄호/긴말 삭제, 회색 박스만) */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag {
             background-color: #F2F4F6; color: #555;
             font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;
         }
+        /* '술 제외' 같은 키워드 있으면 붉은색 포인트 */
         .round-tag.special { background-color: #FFF0F0; color: #E94848; }
 
-        /* 가격 표시 통합 */
+        /* 가격 + 버튼 한 줄 */
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
+        /* "1인 각 000원" 통합 스타일 */
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
         .price-text strong { color: #3182F6; font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace; margin-left: 4px; }
 
+        /* 송금 버튼 (작게) */
         .btn-send {
             background-color: #E8F3FF; color: #3182F6;
             padding: 7px 14px; border-radius: 6px; text-decoration: none;
             font-size: 13px; font-weight: 700;
         }
 
-        /* 상세 영수증 (부활) */
+        /* 3. ★ 하단 상세 영수증 (부활) */
         .receipt-detail {
             margin-top: 40px; background-color: #FFF; padding: 25px 20px;
             position: relative;
+            /* 찢어진 종이 효과 */
             background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%);
             background-position: top center; background-size: 20px 20px; background-repeat: repeat-x;
             padding-top: 40px;
@@ -90,8 +95,8 @@
         .round-header { font-weight: bold; color: #333; margin: 15px 0 5px 0; font-size: 13px; }
 
         .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
-        .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; }
-
+        .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; font-size: 14px; }
+        
         #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -106,20 +111,16 @@
     <div id="toast">계좌번호가 복사되었습니다.</div>
 
     <script>
-        // ★★★ 흰 화면 방지용 안전장치 ★★★
-        // firebase-config.js 파일이 제대로 안 불러와졌으면 여기서 에러 메시지를 띄웁니다.
+        // ★ 에러 캐칭: js/firebase-config.js 로드 실패 시 화면에 표시
         if (typeof initFirebase !== 'function') {
             document.getElementById('receiptArea').innerHTML = `
                 <div class="error-msg">
-                    ⚠️ 설정 파일 로드 실패!<br><br>
-                    <span style="font-size:12px; color:#555;">
-                    1. <b>firebase-config.js</b> 파일이<br>
-                    2. <b>이 HTML 파일과 같은 폴더</b>에 있는지 확인해주세요.<br>
-                    (js 폴더 안에 있다면 코드를 src="js/firebase-config.js"로 고쳐야 합니다)
-                    </span>
+                    ⚠️ 설정 파일 로드 실패<br><br>
+                    js 폴더 안에 firebase-config.js 파일이<br>있는지 확인해주세요.<br><br>
+                    (현재 경로: src="js/firebase-config.js")
                 </div>
             `;
-            throw new Error("Firebase config missing"); // 스크립트 중단
+            throw new Error("Config not loaded");
         }
 
         const db = initFirebase();
@@ -127,7 +128,7 @@
         const docId = urlParams.get('id');
 
         if (docId) loadReceipt(docId);
-        else document.getElementById('receiptArea').innerHTML = "<div class='loading'>잘못된 접근입니다. (ID 없음)</div>";
+        else document.getElementById('receiptArea').innerHTML = "<div class='loading'>잘못된 접근입니다.</div>";
 
         function loadReceipt(id) {
             db.collection("receipts").doc(id).get().then((doc) => {
@@ -148,15 +149,15 @@
                 groups[amt].members.push(member.name);
             });
 
-            // 2. 태그 생성 (피드백 반영: 괄호 삭제, 비용 글자 삭제)
+            // 2. 태그 HTML 생성 (짧고 굵게!)
             let tagsHtml = "";
             if (data.details && Array.isArray(data.details)) {
                 data.details.forEach((round, idx) => {
-                    // "1차 비용" -> "1차"
+                    // "1차 비용" -> "1차"로 줄임. 메뉴명(멜론 등)은 제거.
                     let title = round.rName || (idx + 1) + "차";
                     title = title.replace("비용", "").trim();
                     
-                    // 태그 스타일
+                    // 태그 스타일: '제외', 'No' 있으면 빨간 포인트
                     let badgeClass = "round-tag";
                     if(title.includes("제외") || title.includes("No")) badgeClass += " special";
                     
@@ -164,7 +165,7 @@
                 });
             }
 
-            // 3. HTML 렌더링
+            // 3. HTML 조립
             let html = `
                 <div class="summary-card">
                     <div class="meeting-title">${data.title}</div>
