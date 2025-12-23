@@ -8,13 +8,13 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    
     <script src="js/firebase-config.js"></script>
 
     <style>
-        body { background-color: #F2F4F6; font-family: 'Noto Sans KR', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px 10px; }
+        body { background-color: #F2F4F6; font-family: 'Noto Sans KR', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px 10px; }
         .container { width: 100%; max-width: 420px; }
 
+        /* 요약 카드 */
         .summary-card { background-color: #FFF; border-radius: 16px; padding: 30px 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
         .meeting-date { font-size: 13px; color: #8B95A1; }
@@ -23,16 +23,16 @@
         .account-box { display: flex; align-items: center; justify-content: center; background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px; margin-top: 20px; font-size: 13px; color: #4E5968; }
         .btn-copy { background: none; border: 1px solid #D1D6DB; border-radius: 4px; padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer; }
 
+        /* 그룹 카드 */
         .group-card { background-color: #FFF; border-radius: 12px; padding: 20px; margin-bottom: 12px; border: 1px solid #E5E8EB; }
         .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; line-height: 1.4; }
 
+        /* 태그 */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag { background-color: #F2F4F6; color: #555; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500; }
-        
-        /* 태그 상태별 컬러 */
-        .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; } /* 미참여 */
-        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술 제외 */
-        .round-tag.detail { background-color: #E8F3FF; color: #3182F6; } /* 구체적 제외 (파랑) */
+        .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; }
+        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; }
+        .round-tag.detail { background-color: #E8F3FF; color: #3182F6; }
 
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
@@ -43,10 +43,14 @@
         .detail-header { text-align: center; font-size: 13px; font-weight: 700; color: #999; margin-bottom: 20px; letter-spacing: 1px; }
         .receipt-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
         .round-header { font-weight: bold; color: #333; margin: 15px 0 5px 0; font-size: 13px; }
-        .version-info { text-align: center; margin-top: 30px; color: #ddd; font-size: 10px; }
 
         .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
         .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; font-size: 14px; }
+        
+        /* ★ 데이터 진단 패널 스타일 */
+        .debug-panel { margin-top: 50px; background-color: #222; color: #0f0; padding: 15px; font-family: monospace; font-size: 11px; width: 100%; border-radius: 8px; word-break: break-all; }
+        .debug-title { color: #fff; font-weight: bold; border-bottom: 1px solid #555; padding-bottom: 5px; margin-bottom: 5px; }
+        
         #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -58,6 +62,9 @@
     <div class="container" id="receiptArea">
         <div class="loading">내역 불러오는 중...</div>
     </div>
+    
+    <div id="debugArea" class="container"></div>
+
     <div id="toast">계좌번호가 복사되었습니다.</div>
 
     <script>
@@ -75,18 +82,21 @@
 
         function loadReceipt(id) {
             db.collection("receipts").doc(id).get().then((doc) => {
-                if (doc.exists) renderPage(doc.data());
-                else document.getElementById('receiptArea').innerHTML = "<div class='loading'>삭제된 영수증입니다.</div>";
+                if (doc.exists) {
+                    renderPage(doc.data());
+                    renderDebugInfo(doc.data()); // ★ 진단 실행
+                } else {
+                    document.getElementById('receiptArea').innerHTML = "<div class='loading'>삭제된 영수증입니다.</div>";
+                }
             }).catch((e) => {
                 document.getElementById('receiptArea').innerHTML = "<div class='loading'>불러오기 실패<br>" + e.message + "</div>";
             });
         }
 
         function renderPage(data) {
-            // 이름 공백 제거 및 소문자화 (매칭률 극대화)
             const normalize = (str) => (str || "").replace(/\s/g, "").toLowerCase();
 
-            // 1. 그룹핑 알고리즘 (Ver 15.0: 상세 제외 내역 기반)
+            // 1. 그룹핑 (Ver 15.0 로직 유지)
             let groups = {};
 
             data.members.forEach(member => {
@@ -102,49 +112,39 @@
                         title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
 
                         let totalItems = round.items ? round.items.length : 0;
-                        let skippedItems = []; // ★ 내가 안 먹은 아이템 이름 수집
+                        let skippedItems = []; 
 
                         if (round.items && round.items.length > 0) {
                             round.items.forEach(item => {
-                                // DB 필드명 방어 (eaters, participants 등)
                                 let eatersList = item.eaters || item.participants || item.members;
                                 
                                 let didIEat = false;
                                 if (!eatersList) {
-                                    // eaters 명단이 아예 없으면 -> 모두가 먹은 것으로 간주 (일반적)
-                                    didIEat = true;
+                                    // ★ 여기가 핵심: 명단이 없으면 무조건 먹은 걸로 처리됨
+                                    didIEat = true; 
                                 } else {
-                                    // eaters 명단이 존재하면 -> 내 이름이 거기에 있는지 정밀 체크
                                     didIEat = eatersList.some(e => normalize(e).includes(myName) || myName.includes(normalize(e)));
                                 }
 
                                 if (!didIEat) {
-                                    // 내가 안 먹었으면 리스트에 추가
                                     let iName = item.iName || item.name || "메뉴";
                                     skippedItems.push(iName);
                                 }
                             });
                         } else {
-                            // 아이템 상세가 없으면 전체 참여로 간주
                             totalItems = 1; 
                         }
 
-                        // ★ [Ver 15.0] 태그 텍스트 생성 로직
-                        // "부분 참여" 따위는 없다. 무조건 뺀 거 다 적는다.
+                        // 태그 텍스트 생성
                         let tagText = title;
-                        let tagType = "FULL"; // FULL, EXCLUDED, DETAIL, ALCOHOL_EXCLUDED
+                        let tagType = "FULL";
 
                         if (skippedItems.length === 0) {
-                            // 다 먹음 -> 그냥 "1차"
                             tagType = "FULL";
                         } else if (skippedItems.length === totalItems) {
-                            // 하나도 안 먹음 -> "1차(미참여)"
                             tagText += "(미참여)";
                             tagType = "EXCLUDED";
                         } else {
-                            // 일부만 뺌 -> 뺀 내역 분석
-                            
-                            // 1. 뺀 게 전부 술인가?
                             let allSkippedIsAlcohol = skippedItems.every(name => {
                                 return name.toLowerCase().match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하|막걸리|참이슬|처음처럼|복분자/);
                             });
@@ -153,8 +153,6 @@
                                 tagText += "(술 제외)";
                                 tagType = "ALCOHOL";
                             } else {
-                                // 2. 술 말고 다른 것도 뺐거나 섞여있음 -> 구체적으로 명시
-                                // 너무 길면 2개까지만 보여주고 외 N건 처리 (UI 깨짐 방지)
                                 let detailStr = "";
                                 if (skippedItems.length > 2) {
                                     detailStr = `${skippedItems[0]}, ${skippedItems[1]} 외`;
@@ -171,15 +169,9 @@
                     });
                 }
 
-                // 그룹 키 생성
                 let groupKey = `${member.amount}_${mySignature.join("|")}`;
-
                 if (!groups[groupKey]) {
-                    groups[groupKey] = {
-                        amount: member.amount,
-                        members: [],
-                        tagsData: myTagsData
-                    };
+                    groups[groupKey] = { amount: member.amount, members: [], tagsData: myTagsData };
                 }
                 groups[groupKey].members.push(member.name);
             });
@@ -210,7 +202,7 @@
                     let badgeClass = "round-tag";
                     if (tag.type === "EXCLUDED") badgeClass += " excluded";
                     else if (tag.type === "ALCOHOL") badgeClass += " alcohol";
-                    else if (tag.type === "DETAIL") badgeClass += " detail"; // 파란색
+                    else if (tag.type === "DETAIL") badgeClass += " detail";
                     
                     tagsHtml += `<span class="${badgeClass}">${tag.text}</span>`;
                 });
@@ -232,7 +224,6 @@
                 `;
             });
 
-            // 상세 내역
             html += `
                 <div class="receipt-detail">
                     <div class="detail-header">── 상세 영수증 (RECEIPT) ──</div>
@@ -252,12 +243,35 @@
                     }
                 });
             }
-            html += `
-                <div class="version-info">Ver 15.0 (Detailed Exclusions)</div>
-                <div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split</div>
-                </div>`;
+            html += `<div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split Ver 16.0</div></div>`;
 
             document.getElementById('receiptArea').innerHTML = html;
+        }
+
+        // ★★★ 데이터 진단 함수 ★★★
+        function renderDebugInfo(data) {
+            let debugHtml = `<div class="debug-panel"><div class="debug-title">🔍 DEBUG INFO (개발자 확인용)</div>`;
+            
+            if (data.details) {
+                data.details.forEach((round, idx) => {
+                    debugHtml += `<div>[${idx+1}차] ${round.rName}</div>`;
+                    if (round.items) {
+                        round.items.forEach(item => {
+                            let eaters = item.eaters || item.participants || item.members;
+                            let status = eaters ? JSON.stringify(eaters) : "<span style='color:red'>DATA MISSING (NULL)</span>";
+                            debugHtml += `<div style="padding-left:10px;">- ${item.iName || item.name}: ${status}</div>`;
+                        });
+                    } else {
+                        debugHtml += `<div style="padding-left:10px; color:red">- 아이템 정보 없음</div>`;
+                    }
+                    debugHtml += `<br>`;
+                });
+            } else {
+                debugHtml += `<div>상세 내역(details) 데이터 없음</div>`;
+            }
+            debugHtml += `</div>`;
+            
+            document.getElementById('debugArea').innerHTML = debugHtml;
         }
 
         function copyAccount(acc) {
