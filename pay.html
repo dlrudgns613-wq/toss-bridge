@@ -12,102 +12,46 @@
     <script src="js/firebase-config.js"></script>
 
     <style>
-        body {
-            background-color: #F2F4F6;
-            font-family: 'Noto Sans KR', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px 10px;
-        }
-
+        body { background-color: #F2F4F6; font-family: 'Noto Sans KR', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px 10px; }
         .container { width: 100%; max-width: 420px; }
 
         /* 요약 카드 */
-        .summary-card {
-            background-color: #FFF;
-            border-radius: 16px;
-            padding: 30px 24px;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
+        .summary-card { background-color: #FFF; border-radius: 16px; padding: 30px 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
         .meeting-date { font-size: 13px; color: #8B95A1; }
-        
-        /* Total 금액 (21px 유지) */
-        .total-amount { 
-            font-size: 21px; 
-            font-weight: 700; 
-            color: #333D4B; 
-            margin-top: 16px; 
-            font-family: 'Roboto Mono', monospace; 
-        }
+        .total-amount { font-size: 21px; font-weight: 700; color: #333D4B; margin-top: 16px; font-family: 'Roboto Mono', monospace; }
 
-        .account-box {
-            display: flex; align-items: center; justify-content: center;
-            background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px;
-            margin-top: 20px; font-size: 13px; color: #4E5968;
-        }
-        .btn-copy {
-            background: none; border: 1px solid #D1D6DB; border-radius: 4px;
-            padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer;
-        }
+        .account-box { display: flex; align-items: center; justify-content: center; background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px; margin-top: 20px; font-size: 13px; color: #4E5968; }
+        .btn-copy { background: none; border: 1px solid #D1D6DB; border-radius: 4px; padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer; }
 
         /* 그룹 카드 */
-        .group-card {
-            background-color: #FFF;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 12px;
-            border: 1px solid #E5E8EB;
-        }
+        .group-card { background-color: #FFF; border-radius: 12px; padding: 20px; margin-bottom: 12px; border: 1px solid #E5E8EB; }
         .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; }
 
         /* 태그 스타일 */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .round-tag { background-color: #F2F4F6; color: #555; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500; }
         
-        /* 참여한 태그 (회색) */
-        .round-tag {
-            background-color: #F2F4F6; color: #555;
-            font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;
-        }
-        
-        /* 제외된 태그 (붉은 텍스트로 강조) */
-        .round-tag.excluded {
-            background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.7;
-        }
-        
-        /* 술 제외 등 특수 키워드 */
-        .round-tag.special { background-color: #FFF8E1; color: #F57F17; }
+        /* 특수 태그 스타일 */
+        .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; } /* 아예 미참여 */
+        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; } /* 부분 참여 */
+        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술 제외 */
 
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
-        
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
         .price-text strong { color: #3182F6; font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace; margin-left: 4px; }
+        .btn-send { background-color: #E8F3FF; color: #3182F6; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 700; }
 
-        .btn-send {
-            background-color: #E8F3FF; color: #3182F6;
-            padding: 7px 14px; border-radius: 6px; text-decoration: none;
-            font-size: 13px; font-weight: 700;
-        }
-
-        .receipt-detail {
-            margin-top: 40px; background-color: #FFF; padding: 25px 20px;
-            position: relative;
-            background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%);
-            background-position: top center; background-size: 20px 20px; background-repeat: repeat-x;
-            padding-top: 40px;
-        }
+        /* 상세 영수증 */
+        .receipt-detail { margin-top: 40px; background-color: #FFF; padding: 25px 20px; position: relative; background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%); background-position: top center; background-size: 20px 20px; background-repeat: repeat-x; padding-top: 40px; }
         .detail-header { text-align: center; font-size: 13px; font-weight: 700; color: #999; margin-bottom: 20px; letter-spacing: 1px; }
         .receipt-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
         .round-header { font-weight: bold; color: #333; margin: 15px 0 5px 0; font-size: 13px; }
 
         .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
         .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; font-size: 14px; }
-        
+        .version-info { text-align: center; margin-top: 40px; color: #ddd; font-size: 10px; }
+
         #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -123,8 +67,7 @@
 
     <script>
         if (typeof initFirebase !== 'function') {
-            document.getElementById('receiptArea').innerHTML = `
-                <div class="error-msg">⚠️ 설정 파일 로드 실패 (js/firebase-config.js 확인)</div>`;
+            document.getElementById('receiptArea').innerHTML = `<div class="error-msg">⚠️ 설정 파일 로드 실패 (js/firebase-config.js)</div>`;
             throw new Error("Config not loaded");
         }
 
@@ -150,11 +93,12 @@
             data.members.forEach(member => {
                 if (member.amount === 0) return;
                 let amt = member.amount;
+                // 그룹의 대표자 이름 하나를 저장해둠 (참여 여부 판단용)
                 if (!groups[amt]) groups[amt] = { members: [], sampleName: member.name };
                 groups[amt].members.push(member.name);
             });
 
-            // HTML 헤더
+            // 헤더
             let html = `
                 <div class="summary-card">
                     <div class="meeting-title">${data.title}</div>
@@ -168,65 +112,73 @@
             `;
 
             let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
-            
-            // ★ 그룹별 반복 (여기서 각자 태그를 다르게 만듭니다)
+
+            // ★ 그룹별 태그 생성 로직 (9차 수정)
             sortedAmounts.forEach(amt => {
                 let group = groups[amt];
                 let names = group.members.join(", ");
                 let count = group.members.length;
                 let perPerson = Number(amt).toLocaleString();
                 
-                // ★ [핵심] 태그 생성 로직 (1차, 2차, 제외 여부 판단)
                 let tagsHtml = "";
                 
                 if (data.details && Array.isArray(data.details)) {
                     data.details.forEach((round, idx) => {
-                        let title = round.rName || (idx + 1) + "차";
-                        title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
+                        let originalTitle = round.rName || (idx + 1) + "차";
+                        let title = originalTitle.replace(/[\[\]]/g, "").replace("비용", "").trim();
 
-                        // 이 사람이 이 라운드에서 돈을 냈는지 확인 (간접 유추)
-                        // DB에 eaters가 있다면 정확하지만, 없으면 일단 전체 포함으로 가정
-                        // 하지만 체크박스를 해제했다면 round.items 안에 이 사람 이름이 없어야 정상입니다.
+                        // 이 사람이 이 라운드에서 '제외'된 항목이 있는지 검사
+                        // DB에 eaters(먹은 사람 리스트)가 있어야 정확함. 없으면 '전체참여'로 가정.
                         
-                        let isParticipated = false;
-                        
-                        // 대표 멤버 한명만 검사 (같은 금액 그룹이니까)
-                        let checkName = group.sampleName; 
-                        
+                        let totalItems = round.items ? round.items.length : 0;
+                        let eatenCount = 0;
+                        let missedAlcohol = false; // 술을 안 먹었는지 체크
+
                         if (round.items) {
-                            // 라운드 내 모든 아이템을 뒤져서 이 사람이 먹었는지 확인
-                            for (let item of round.items) {
-                                // eaters 배열이 있거나, 없으면 모두 먹은 것으로 간주
-                                if (!item.eaters || item.eaters.includes(checkName)) {
-                                    isParticipated = true;
-                                    break;
+                            round.items.forEach(item => {
+                                // eaters가 없으면 다 먹은 걸로 간주, 있으면 이름 체크
+                                let eaters = item.eaters;
+                                if (!eaters || eaters.includes(group.sampleName)) {
+                                    eatenCount++;
+                                } else {
+                                    // 안 먹은 항목 발생!
+                                    // 그 항목이 술인지 체크
+                                    let iName = (item.iName || item.name || "").toLowerCase();
+                                    if (iName.includes("술") || iName.includes("소주") || iName.includes("맥주") || iName.includes("주류") || iName.includes("하이볼")) {
+                                        missedAlcohol = true;
+                                    }
                                 }
-                            }
+                            });
                         } else {
-                            // 아이템 정보가 없으면 참여로 간주
-                            isParticipated = true; 
+                            eatenCount = 1; // 아이템 정보 없으면 그냥 참여로 침
+                            totalItems = 1;
                         }
 
-                        // ★ 태그 렌더링
-                        if (isParticipated) {
-                            // 참여함 -> 그냥 "1차"
-                            let badgeClass = "round-tag";
-                            if(title.includes("제외") || title.includes("No")) badgeClass += " special";
-                            tagsHtml += `<span class="${badgeClass}">${title}</span>`;
+                        // ★ 태그 결정 로직
+                        if (eatenCount === 0) {
+                            // 1. 아예 하나도 안 먹음 -> (미참여)
+                            tagsHtml += `<span class="round-tag excluded">${title}(미참여)</span>`;
+                        } else if (eatenCount < totalItems) {
+                            // 2. 부분 참여함
+                            if (missedAlcohol) {
+                                // 술을 뺐으면 -> (술 제외)
+                                tagsHtml += `<span class="round-tag alcohol">${title}(술 제외)</span>`;
+                            } else {
+                                // 그냥 다른 걸 뺐으면 -> (부분 참여)
+                                tagsHtml += `<span class="round-tag partial">${title}(부분 참여)</span>`;
+                            }
                         } else {
-                            // 참여 안 함 -> "1차(제외)"
-                            tagsHtml += `<span class="round-tag excluded">${title}(제외)</span>`;
+                            // 3. 다 먹음 -> 그냥 깔끔하게 "1차"
+                            // (혹시 제목 자체에 '제외'가 써있으면 그대로 표시)
+                            let badgeClass = "round-tag";
+                            if(title.includes("제외")) badgeClass += " special";
+                            tagsHtml += `<span class="${badgeClass}">${title}</span>`;
                         }
                     });
                 }
 
-                // 1명일 때는 "1인당" 글자 삭제 (피드백 반영)
-                let priceLabel = "";
-                if (count > 1) {
-                    priceLabel = `1인당 <strong>${perPerson}원</strong>`;
-                } else {
-                    priceLabel = `<strong>${perPerson}원</strong>`;
-                }
+                // 1명일 땐 금액만 (피드백 반영)
+                let priceLabel = count > 1 ? `1인당 <strong>${perPerson}원</strong>` : `<strong>${perPerson}원</strong>`;
 
                 let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
@@ -235,9 +187,7 @@
                 html += `
                     <div class="group-card">
                         <div class="group-names">${names} <span style="font-weight:400; font-size:13px; color:#888;">(${count}명)</span></div>
-                        
                         <div class="tags-container">${tagsHtml}</div>
-                        
                         <div class="action-row">
                             <div class="price-text">${priceLabel}</div>
                             <a href="${tossLink}" class="btn-send">송금하기</a>
@@ -266,7 +216,10 @@
                     }
                 });
             }
-            html += `<div style="text-align:center; margin-top:30px; font-size:11px; color:#AAA;">Smart Split</div></div>`;
+            html += `
+                <div class="version-info">Ver 9.0 (Tag Logic Updated)</div>
+                <div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split</div>
+                </div>`;
 
             document.getElementById('receiptArea').innerHTML = html;
         }
