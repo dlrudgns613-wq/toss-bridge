@@ -25,7 +25,7 @@
 
         .container { width: 100%; max-width: 420px; }
 
-        /* 1. 상단 요약 카드 */
+        /* 요약 카드 */
         .summary-card {
             background-color: #FFF;
             border-radius: 16px;
@@ -36,7 +36,15 @@
         }
         .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
         .meeting-date { font-size: 13px; color: #8B95A1; }
-        .total-amount { font-size: 26px; font-weight: 700; color: #333D4B; margin-top: 16px; font-family: 'Roboto Mono', monospace; }
+        
+        /* ★ [수정 1] Total 금액 크기 축소 (26px -> 21px) */
+        .total-amount { 
+            font-size: 21px; 
+            font-weight: 700; 
+            color: #333D4B; 
+            margin-top: 16px; 
+            font-family: 'Roboto Mono', monospace; 
+        }
 
         /* 계좌 복사 박스 */
         .account-box {
@@ -49,7 +57,7 @@
             padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer;
         }
 
-        /* 2. 그룹 카드 */
+        /* 그룹 카드 */
         .group-card {
             background-color: #FFF;
             border-radius: 12px;
@@ -59,33 +67,31 @@
         }
         .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; }
 
-        /* ★ 태그 스타일 (개발자님 요청: 괄호/긴말 삭제, 회색 박스만) */
+        /* 태그 스타일 */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag {
             background-color: #F2F4F6; color: #555;
             font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;
         }
-        /* '술 제외' 같은 키워드 있으면 붉은색 포인트 */
         .round-tag.special { background-color: #FFF0F0; color: #E94848; }
 
-        /* 가격 + 버튼 한 줄 */
+        /* 가격 + 버튼 행 */
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
-        /* "1인 각 000원" 통합 스타일 */
+        
+        /* 가격 텍스트 */
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
         .price-text strong { color: #3182F6; font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace; margin-left: 4px; }
 
-        /* 송금 버튼 (작게) */
         .btn-send {
             background-color: #E8F3FF; color: #3182F6;
             padding: 7px 14px; border-radius: 6px; text-decoration: none;
             font-size: 13px; font-weight: 700;
         }
 
-        /* 3. ★ 하단 상세 영수증 (부활) */
+        /* 상세 영수증 */
         .receipt-detail {
             margin-top: 40px; background-color: #FFF; padding: 25px 20px;
             position: relative;
-            /* 찢어진 종이 효과 */
             background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%);
             background-position: top center; background-size: 20px 20px; background-repeat: repeat-x;
             padding-top: 40px;
@@ -111,7 +117,7 @@
     <div id="toast">계좌번호가 복사되었습니다.</div>
 
     <script>
-        // ★ 에러 캐칭: js/firebase-config.js 로드 실패 시 화면에 표시
+        // 에러 캐칭
         if (typeof initFirebase !== 'function') {
             document.getElementById('receiptArea').innerHTML = `
                 <div class="error-msg">
@@ -149,15 +155,15 @@
                 groups[amt].members.push(member.name);
             });
 
-            // 2. 태그 HTML 생성 (짧고 굵게!)
+            // 2. 태그 알고리즘 개선 (★ 수정 2)
             let tagsHtml = "";
             if (data.details && Array.isArray(data.details)) {
                 data.details.forEach((round, idx) => {
-                    // "1차 비용" -> "1차"로 줄임. 메뉴명(멜론 등)은 제거.
                     let title = round.rName || (idx + 1) + "차";
-                    title = title.replace("비용", "").trim();
                     
-                    // 태그 스타일: '제외', 'No' 있으면 빨간 포인트
+                    // [ ] 대괄호 제거, "비용" 제거, 앞뒤 공백 제거
+                    title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
+                    
                     let badgeClass = "round-tag";
                     if(title.includes("제외") || title.includes("No")) badgeClass += " special";
                     
@@ -189,6 +195,14 @@
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
                 let tossLink = `supertoss://send?amount=${amt}${bankParam}${accountParam}`;
 
+                // ★ [수정 3 & 4] "1인 각" -> "1인당", 1명일 땐 문구 삭제
+                let priceLabel = "";
+                if (count > 1) {
+                    priceLabel = `1인당 <strong>${perPerson}원</strong>`;
+                } else {
+                    priceLabel = `<strong>${perPerson}원</strong>`; // 1명이면 그냥 금액만
+                }
+
                 html += `
                     <div class="group-card">
                         <div class="group-names">${names} <span style="font-weight:400; font-size:13px; color:#888;">(${count}명)</span></div>
@@ -196,14 +210,14 @@
                         <div class="tags-container">${tagsHtml}</div>
                         
                         <div class="action-row">
-                            <div class="price-text">1인 각 <strong>${perPerson}원</strong></div>
+                            <div class="price-text">${priceLabel}</div>
                             <a href="${tossLink}" class="btn-send">송금하기</a>
                         </div>
                     </div>
                 `;
             });
 
-            // ★ 4. 상세 내역 영수증 (부활)
+            // 4. 상세 내역 영수증
             html += `
                 <div class="receipt-detail">
                     <div class="detail-header">── 상세 영수증 (RECEIPT) ──</div>
