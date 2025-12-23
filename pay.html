@@ -32,8 +32,7 @@
         /* 태그 상태별 컬러 */
         .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; } /* 미참여 */
         .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술 제외 */
-        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; } /* 부분 참여 */
-        .round-tag.special { background-color: #E0F2F1; color: #009688; } /* 강조 */
+        .round-tag.detail { background-color: #E8F3FF; color: #3182F6; } /* 구체적 제외 (파랑) */
 
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
@@ -84,10 +83,10 @@
         }
 
         function renderPage(data) {
-            // 이름 공백제거 및 소문자화 (매칭률 극대화)
+            // 이름 공백 제거 및 소문자화 (매칭률 극대화)
             const normalize = (str) => (str || "").replace(/\s/g, "").toLowerCase();
 
-            // 1. 그룹핑 (Ver 14.0: 제외 항목 기반 범용 로직)
+            // 1. 그룹핑 알고리즘 (Ver 15.0: 상세 제외 내역 기반)
             let groups = {};
 
             data.members.forEach(member => {
@@ -102,66 +101,77 @@
                         let title = round.rName || (idx + 1) + "차";
                         title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
 
-                        // 참여 현황 분석
                         let totalItems = round.items ? round.items.length : 0;
-                        let eatenCount = 0;
-                        let skippedItems = []; // 내가 안 먹은 아이템 리스트
+                        let skippedItems = []; // ★ 내가 안 먹은 아이템 이름 수집
 
                         if (round.items && round.items.length > 0) {
                             round.items.forEach(item => {
-                                // DB 필드명 방어
+                                // DB 필드명 방어 (eaters, participants 등)
                                 let eatersList = item.eaters || item.participants || item.members;
                                 
                                 let didIEat = false;
                                 if (!eatersList) {
-                                    // 명단 없으면 = 전체 참여
+                                    // eaters 명단이 아예 없으면 -> 모두가 먹은 것으로 간주 (일반적)
                                     didIEat = true;
                                 } else {
-                                    // 명단 있으면 = 내 이름 확인
-                                    // (김철수 == 김 철 수)
+                                    // eaters 명단이 존재하면 -> 내 이름이 거기에 있는지 정밀 체크
                                     didIEat = eatersList.some(e => normalize(e).includes(myName) || myName.includes(normalize(e)));
                                 }
 
-                                if (didIEat) {
-                                    eatenCount++;
-                                } else {
-                                    // 내가 안 먹은(제외된) 아이템 수집
-                                    skippedItems.push(item.iName || item.name || "");
+                                if (!didIEat) {
+                                    // 내가 안 먹었으면 리스트에 추가
+                                    let iName = item.iName || item.name || "메뉴";
+                                    skippedItems.push(iName);
                                 }
                             });
                         } else {
-                            // 아이템 상세 정보가 없으면, 그냥 전체 참여로 간주
-                            eatenCount = 1; totalItems = 1;
+                            // 아이템 상세가 없으면 전체 참여로 간주
+                            totalItems = 1; 
                         }
 
-                        // ★ [Ver 14.0] 상태 결정 로직
-                        let status = "FULL";
+                        // ★ [Ver 15.0] 태그 텍스트 생성 로직
+                        // "부분 참여" 따위는 없다. 무조건 뺀 거 다 적는다.
+                        let tagText = title;
+                        let tagType = "FULL"; // FULL, EXCLUDED, DETAIL, ALCOHOL_EXCLUDED
 
-                        if (eatenCount === 0) {
-                            status = "NONE"; // 하나도 안 먹음
-                        } else if (eatenCount < totalItems) {
-                            // 부분 참여 (무언가를 뺐음)
-                            // 뺀 항목 중에 '술'이 있는지 확인 (사용자 니즈 반영)
-                            let hasAlcoholSkipped = skippedItems.some(name => {
-                                let n = name.toLowerCase();
-                                return n.match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하|막걸리|참이슬|처음처럼|복분자/);
+                        if (skippedItems.length === 0) {
+                            // 다 먹음 -> 그냥 "1차"
+                            tagType = "FULL";
+                        } else if (skippedItems.length === totalItems) {
+                            // 하나도 안 먹음 -> "1차(미참여)"
+                            tagText += "(미참여)";
+                            tagType = "EXCLUDED";
+                        } else {
+                            // 일부만 뺌 -> 뺀 내역 분석
+                            
+                            // 1. 뺀 게 전부 술인가?
+                            let allSkippedIsAlcohol = skippedItems.every(name => {
+                                return name.toLowerCase().match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하|막걸리|참이슬|처음처럼|복분자/);
                             });
 
-                            if (hasAlcoholSkipped) {
-                                status = "NO_ALCOHOL"; // 술을 뺐으면 무조건 '술 제외' 태그
+                            if (allSkippedIsAlcohol && skippedItems.length > 0) {
+                                tagText += "(술 제외)";
+                                tagType = "ALCOHOL";
                             } else {
-                                status = "PARTIAL"; // 술 말고 다른 걸 뺐으면 '부분 참여'
+                                // 2. 술 말고 다른 것도 뺐거나 섞여있음 -> 구체적으로 명시
+                                // 너무 길면 2개까지만 보여주고 외 N건 처리 (UI 깨짐 방지)
+                                let detailStr = "";
+                                if (skippedItems.length > 2) {
+                                    detailStr = `${skippedItems[0]}, ${skippedItems[1]} 외`;
+                                } else {
+                                    detailStr = skippedItems.join(", ");
+                                }
+                                tagText += `(${detailStr} 제외)`;
+                                tagType = "DETAIL";
                             }
-                        } else {
-                            status = "FULL"; // 다 먹음
                         }
 
-                        mySignature.push(`${idx}:${status}`);
-                        myTagsData.push({ title, status });
+                        mySignature.push(`${idx}:${tagText}`);
+                        myTagsData.push({ text: tagText, type: tagType });
                     });
                 }
 
-                // 그룹 키: 금액 + 참여 상태
+                // 그룹 키 생성
                 let groupKey = `${member.amount}_${mySignature.join("|")}`;
 
                 if (!groups[groupKey]) {
@@ -197,22 +207,12 @@
                 
                 let tagsHtml = "";
                 group.tagsData.forEach(tag => {
-                    let displayTitle = tag.title;
-                    if (tag.status === "NONE") {
-                        // 미참여
-                        tagsHtml += `<span class="round-tag excluded">${displayTitle}(미참여)</span>`;
-                    } else if (tag.status === "NO_ALCOHOL") {
-                        // 술 제외 (노란색)
-                        tagsHtml += `<span class="round-tag alcohol">${displayTitle}(술 제외)</span>`;
-                    } else if (tag.status === "PARTIAL") {
-                        // 부분 참여 (파란색) - 노래방 등
-                        tagsHtml += `<span class="round-tag partial">${displayTitle}(부분 참여)</span>`;
-                    } else {
-                        // 전체 참여
-                        let badgeClass = "round-tag";
-                        if(displayTitle.includes("제외")) badgeClass += " special"; // 제목 자체에 '제외'가 있으면 강조
-                        tagsHtml += `<span class="${badgeClass}">${displayTitle}</span>`;
-                    }
+                    let badgeClass = "round-tag";
+                    if (tag.type === "EXCLUDED") badgeClass += " excluded";
+                    else if (tag.type === "ALCOHOL") badgeClass += " alcohol";
+                    else if (tag.type === "DETAIL") badgeClass += " detail"; // 파란색
+                    
+                    tagsHtml += `<span class="${badgeClass}">${tag.text}</span>`;
                 });
 
                 let priceLabel = count > 1 ? `1인당 <strong>${perPerson}원</strong>` : `<strong>${perPerson}원</strong>`;
@@ -253,7 +253,7 @@
                 });
             }
             html += `
-                <div class="version-info">Ver 14.0 (Universal Exclusion Logic)</div>
+                <div class="version-info">Ver 15.0 (Detailed Exclusions)</div>
                 <div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split</div>
                 </div>`;
 
