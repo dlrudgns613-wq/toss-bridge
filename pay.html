@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>정산 영수증</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Inconsolata:wght@700&display=swap" rel="stylesheet">
+    <title>정산 상세 내역</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -12,148 +12,177 @@
 
     <style>
         body {
-            background-color: #F0F2F5; /* 깔끔한 앱 배경색 */
+            background-color: #F2F4F6; /* 토스 느낌의 연한 회색 */
             font-family: 'Noto Sans KR', sans-serif;
             display: flex;
             justify-content: center;
+            align-items: flex-start; /* 위에서부터 시작 */
             min-height: 100vh;
             margin: 0;
-            padding: 20px 10px;
+            padding: 20px 15px;
         }
 
-        /* 영수증 카드 본체 */
+        /* 영수증 카드 */
         .receipt-card {
             background-color: #FFF;
             width: 100%;
-            max-width: 400px;
-            border-radius: 0 0 10px 10px; /* 위쪽은 톱니가 될 거라 둥글게 X */
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 420px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            overflow: hidden;
             position: relative;
-            margin-top: 10px; /* 상단 톱니 공간 */
-            padding-bottom: 30px;
         }
 
-        /* ★ 상단 지그재그 (영수증 찢어진 느낌) */
+        /* 상단 톱니바퀴 (영수증 느낌) */
         .receipt-card::before {
             content: "";
             position: absolute;
-            top: -10px;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 10px;
-            background: linear-gradient(135deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%),
-                        linear-gradient(45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%);
-            background-size: 20px 20px;
-            background-position: 0 10px; /* 방향 반대로 */
-            transform: rotate(180deg); /* 뒤집어서 위로 */
-        }
-        
-        /* 하단 지그재그 */
-        .receipt-card::after {
-            content: "";
-            position: absolute;
-            bottom: -10px;
-            left: 0;
-            width: 100%;
-            height: 10px;
-            background: linear-gradient(45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%),
-                        linear-gradient(-45deg, transparent 33.333%, #FFF 33.333%, #FFF 66.667%, transparent 66.667%);
-            background-size: 20px 20px;
-            background-position: 0 -10px;
+            height: 6px;
+            background: linear-gradient(135deg, transparent 33%, #F2F4F6 33%, #F2F4F6 66%, transparent 66%),
+                        linear-gradient(45deg, transparent 33%, #F2F4F6 33%, #F2F4F6 66%, transparent 66%);
+            background-size: 12px 6px;
+            background-position: 0 -6px; /* 살짝 위로 숨김 처리 or 디자인 요소 */
         }
 
+        /* 헤더 영역 */
         .header-section {
-            padding: 30px 25px 20px 25px;
+            padding: 30px 24px 20px;
             text-align: center;
-            border-bottom: 2px dashed #EEE;
+            border-bottom: 1px solid #F2F4F6;
+        }
+        .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
+        .meeting-date { font-size: 13px; color: #8B95A1; }
+        
+        /* 총액 (사이즈 줄임) */
+        .total-amount { 
+            font-size: 24px; /* 36px에서 줄임 */
+            font-weight: 700; 
+            color: #333D4B; 
+            margin-top: 16px; 
+            font-family: 'Roboto Mono', monospace; 
         }
 
-        .meeting-title { font-size: 22px; font-weight: 700; color: #222; margin-bottom: 5px; }
-        .meeting-date { font-size: 13px; color: #888; letter-spacing: 0.5px; }
-        .total-amount { font-size: 28px; font-weight: 700; color: #3182f6; margin-top: 15px; font-family: 'Inconsolata', monospace; }
-
-        .content-section {
-            padding: 25px 20px;
+        /* 계좌 정보 & 복사 */
+        .account-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #F9FAFB;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #4E5968;
         }
-
-        /* ★ 그룹 카드 스타일 (개발자님이 원하신 회색 박스 느낌) */
-        .group-card {
-            border: 1px solid #EEE;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            background-color: #FAFAFA; /* 아주 연한 회색 배경 */
+        .btn-copy {
+            background: none;
+            border: 1px solid #D1D6DB;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-left: 8px;
+            font-size: 11px;
+            color: #4E5968;
+            cursor: pointer;
         }
+        .btn-copy:active { background-color: #E5E8EB; }
 
-        .group-names {
+        .content-section { padding: 24px; background-color: #FFF; }
+
+        /* 그룹 카드 (회색 박스 아님, 깔끔한 흰색에 구분선) */
+        .group-item {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px dashed #E5E8EB;
+        }
+        .group-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .group-members {
             font-size: 16px;
             font-weight: 700;
-            color: #333;
-            line-height: 1.5;
-            margin-bottom: 12px;
+            color: #191F28;
+            margin-bottom: 10px;
+            line-height: 1.4;
         }
 
-        /* ★ 태그 스타일 (회색 박스) */
-        .tags-container {
+        /* ★ 상세 내역 태그 (회색 박스) */
+        .tags-wrapper {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
-        .tag {
-            background-color: #E0E0E0;
-            color: #555;
-            font-size: 11px;
-            font-weight: 600;
+        .tag-badge {
+            display: inline-block;
+            background-color: #F2F4F6;
+            color: #4E5968;
+            font-size: 12px;
             padding: 4px 8px;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-weight: 500;
         }
-        /* 술 제외 같은 특이사항은 약간 다른 색으로 포인트 */
-        .tag.special {
-            background-color: #FFEBEE;
-            color: #D32F2F;
+        /* 특이사항(제외 등)은 약간 붉은끼 */
+        .tag-badge.warning {
+            background-color: #FFF0F0;
+            color: #E94848;
         }
 
-        .price-row {
+        /* 가격 및 송금 행 (통합됨) */
+        .action-row {
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
-            margin-top: 10px;
+            align-items: center;
+            margin-top: 8px;
         }
         
-        .price-detail {
-            font-size: 12px;
-            color: #888;
+        .price-text {
+            font-size: 15px;
+            color: #333D4B;
+            font-weight: 500;
         }
-        .price-per-person {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 2px;
-        }
-        .price-final {
-            font-size: 20px;
+        .price-text strong {
+            color: #3182F6; /* 토스 블루 */
             font-weight: 700;
-            color: #3182f6;
-            font-family: 'Inconsolata', monospace;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 17px;
         }
 
-        /* ★ 송금 버튼 (작게 수정) */
-        .btn-send {
-            display: inline-block;
-            background-color: #3182f6; /* 토스 블루 */
-            color: white;
-            padding: 8px 16px;
+        /* 송금 버튼 (작게) */
+        .btn-send-small {
+            background-color: #E8F3FF;
+            color: #3182F6;
+            padding: 6px 14px;
             border-radius: 6px;
             text-decoration: none;
             font-size: 13px;
             font-weight: 700;
-            margin-left: 10px;
-            transition: background-color 0.2s;
+            transition: background 0.2s;
         }
-        .btn-send:active { background-color: #1b64da; }
+        .btn-send-small:active { background-color: #DBEAFF; }
+
+        .loading { text-align: center; padding: 60px; color: #8B95A1; font-size: 14px; }
         
-        .footer { text-align: center; font-size: 11px; color: #CCC; margin-top: 30px; }
-        .loading { text-align: center; padding: 50px; color: #999; font-size: 14px; }
+        /* 토스트 메시지 (복사 완료 시) */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 10px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 13px;
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body>
@@ -161,9 +190,13 @@
     <div class="receipt-card" id="receiptArea">
         <div class="loading">정산 내역을 불러오는 중...</div>
     </div>
+    
+    <div id="toast">계좌번호가 복사되었습니다.</div>
 
     <script>
-        const db = initFirebase();
+        const db = initFirebase(); // firebase-config.js에서 로드
+        
+        // URL에서 ID 파싱
         const urlParams = new URLSearchParams(window.location.search);
         const docId = urlParams.get('id');
 
@@ -176,7 +209,7 @@
         function loadReceipt(id) {
             db.collection("receipts").doc(id).get().then((doc) => {
                 if (doc.exists) {
-                    renderGroupedReceipt(doc.data());
+                    renderReceipt(doc.data());
                 } else {
                     document.getElementById('receiptArea').innerHTML = "<div class='loading'>영수증을 찾을 수 없습니다.</div>";
                 }
@@ -185,44 +218,65 @@
             });
         }
 
-        function renderGroupedReceipt(data) {
-            // 1. 그룹화 로직 (금액이 같은 사람끼리 묶기)
+        function renderReceipt(data) {
+            // 1. 그룹화 (금액별로 묶기)
             let groups = {};
             data.members.forEach(member => {
                 if (member.amount === 0) return;
                 
-                let amount = member.amount;
-                if (!groups[amount]) {
-                    groups[amount] = {
-                        amount: amount,
-                        members: [],
-                        details: [] // 태그용 상세내역
-                    };
+                let amt = member.amount;
+                if (!groups[amt]) {
+                    groups[amt] = { members: [] };
                 }
-                groups[amount].members.push(member.name);
-                
-                // 태그 로직: 이 사람이 참여한 라운드 이름 찾기
-                // (DB 구조상 details에 user별 참여 정보가 없다면, 전체 라운드를 기반으로 추정하거나
-                // 단순히 '1차, 2차' 등의 포맷으로 표시)
-                // 여기서는 "금액별로 태그가 다를 것이다"라는 가정 하에 표시
-                
-                // *중요*: 개발자님의 DB에 '누가 어디 참여했는지' 정보가 없다면 
-                // 정확한 '술 제외' 태그 자동 생성은 어렵습니다.
-                // 하지만 요청하신 예시 [1차][2차][3차(술 제외)] 느낌을 내기 위해
-                // 모든 라운드 이름을 태그 후보로 둡니다.
+                groups[amt].members.push(member.name);
             });
 
-            // 렌더링 시작
+            // 2. 태그 생성 (상세 내역 근거)
+            // details 배열을 순회하며 회색 박스 태그 생성
+            let tagsHtml = "";
+            if (data.details && Array.isArray(data.details)) {
+                data.details.forEach((round, idx) => {
+                    // 메뉴명이나 차수명 가져오기
+                    let title = round.rName || (idx + 1) + "차";
+                    
+                    // 메뉴 아이템들이 있으면 "삼겹살 외 2건" 처럼 상세 표시
+                    let detailText = "";
+                    if(round.items && round.items.length > 0) {
+                         // 첫번째 메뉴 이름만 따옴 (너무 길어지니까)
+                         let firstItem = round.items[0].iName || round.items[0].name;
+                         detailText = firstItem;
+                         if(round.items.length > 1) detailText += ` 외 ${round.items.length - 1}`;
+                    }
+                    
+                    let label = detailText ? `[${title} ${detailText}]` : `[${title}]`;
+                    
+                    // 특이사항 체크 (개발자님이 원하신 '술 제외' 등의 표시)
+                    // (DB에 명시적 데이터가 없다면 이름으로 추론하거나 기본값 표시)
+                    let isWarning = label.includes("제외") || label.includes("No");
+                    let badgeClass = isWarning ? "tag-badge warning" : "tag-badge";
+                    
+                    tagsHtml += `<span class="${badgeClass}">${label}</span>`;
+                });
+            } else {
+                tagsHtml = `<span class="tag-badge">상세 내역 확인</span>`;
+            }
+
+            // 3. HTML 조립
             let html = `
                 <div class="header-section">
                     <div class="meeting-title">${data.title}</div>
                     <div class="meeting-date">${data.date}</div>
-                    <div class="total-amount">Total ₩ ${Number(data.total).toLocaleString()}</div>
+                    <div class="total-amount">Total ₩${Number(data.total).toLocaleString()}</div>
+                    
+                    <div class="account-box">
+                        <span>${data.bankName || "은행"} ${data.accountNumber || ""}</span>
+                        <button class="btn-copy" onclick="copyAccount('${data.accountNumber}')">복사</button>
+                    </div>
                 </div>
+
                 <div class="content-section">
             `;
 
-            // 그룹별 카드 생성
             // 금액 큰 순서대로 정렬
             let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
 
@@ -231,64 +285,42 @@
                 let names = group.members.join(", ");
                 let count = group.members.length;
                 let perPerson = Number(amt).toLocaleString();
-                
-                // ★ 태그 생성 로직 (여기를 커스텀하세요)
-                // 예시: 5만원 이상이면 1,2,3차 다 간거고, 적으면 덜 간거라고 가정하고 태그를 다르게 줄 수도 있음.
-                // 현재는 DB에 있는 '모든 라운드 이름'을 태그로 변환해서 보여주는 예시입니다.
-                // (실제로는 참여한 라운드만 보여줘야 완벽하지만, 데이터 한계상 전체 라운드 표시)
-                let tagsHtml = "";
-                if (data.details && Array.isArray(data.details)) {
-                    data.details.forEach((round, idx) => {
-                        let tagName = round.rName || (idx + 1) + "차";
-                        let tagClass = "tag";
-                        
-                        // "술"이나 "제외"라는 단어가 들어가면 빨간 태그로 (개발자님 요청 반영)
-                        if(tagName.includes("제외") || tagName.includes("No")) {
-                            tagClass += " special";
-                        }
-                        
-                        // ※ 만약 금액이 낮은 그룹에는 '3차' 태그를 안 보여주고 싶다면?
-                        // 여기에 if (amt < 평균) { continue; } 같은 로직 추가 가능
-                        
-                        tagsHtml += `<span class="${tagClass}">${tagName}</span>`;
-                    });
-                } else {
-                     // details 데이터가 없을 경우 임시 태그
-                     tagsHtml = `<span class="tag">정산 내역 확인</span>`;
-                }
 
-                // 토스 링크 (대표 1인 금액으로 생성)
+                // 토스 링크
                 let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
                 let tossLink = `supertoss://send?amount=${amt}${bankParam}${accountParam}`;
 
                 html += `
-                    <div class="group-card">
-                        <div class="group-names">${names}</div>
+                    <div class="group-item">
+                        <div class="group-members">${names} <span style="font-weight:400; font-size:14px; color:#8B95A1;">(${count}명)</span></div>
                         
-                        <div class="tags-container">
+                        <div class="tags-wrapper">
                             ${tagsHtml}
                         </div>
-                        
-                        <div class="price-row">
-                            <div class="price-detail">
-                                <div class="price-per-person">${count > 1 ? `1인 각 ${perPerson}원` : '정산 금액'}</div>
+
+                        <div class="action-row">
+                            <div class="price-text">
+                                1인 <strong>${perPerson}원</strong>
                             </div>
-                            <div style="display:flex; align-items:center;">
-                                <div class="price-final">₩ ${perPerson}</div>
-                                <a href="${tossLink}" class="btn-send">송금</a>
-                            </div>
+                            <a href="${tossLink}" class="btn-send-small">송금하기</a>
                         </div>
                     </div>
                 `;
             });
 
-            html += `
-                </div>
-                <div class="footer">Smart Split</div>
-            `;
-
+            html += `</div>`;
             document.getElementById('receiptArea').innerHTML = html;
+        }
+
+        // 계좌 복사 함수
+        function copyAccount(accNum) {
+            if (!accNum) return;
+            navigator.clipboard.writeText(accNum).then(() => {
+                let x = document.getElementById("toast");
+                x.className = "show";
+                setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+            });
         }
     </script>
 </body>
