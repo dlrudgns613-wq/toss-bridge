@@ -15,7 +15,6 @@
         body { background-color: #F2F4F6; font-family: 'Noto Sans KR', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px 10px; }
         .container { width: 100%; max-width: 420px; }
 
-        /* 요약 카드 */
         .summary-card { background-color: #FFF; border-radius: 16px; padding: 30px 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .meeting-title { font-size: 20px; font-weight: 700; color: #191F28; margin-bottom: 4px; }
         .meeting-date { font-size: 13px; color: #8B95A1; }
@@ -24,25 +23,23 @@
         .account-box { display: flex; align-items: center; justify-content: center; background-color: #F9FAFB; padding: 10px 14px; border-radius: 8px; margin-top: 20px; font-size: 13px; color: #4E5968; }
         .btn-copy { background: none; border: 1px solid #D1D6DB; border-radius: 4px; padding: 2px 8px; margin-left: 8px; font-size: 11px; color: #4E5968; cursor: pointer; }
 
-        /* 그룹 카드 */
         .group-card { background-color: #FFF; border-radius: 12px; padding: 20px; margin-bottom: 12px; border: 1px solid #E5E8EB; }
         .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; line-height: 1.4; }
 
-        /* 태그 스타일 */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag { background-color: #F2F4F6; color: #555; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500; }
         
+        /* 태그 상태별 컬러 */
         .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; } /* 미참여 */
-        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술제외 (노랑) */
-        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; } /* 부분참여 (파랑) */
-        .round-tag.special { background-color: #E0F2F1; color: #009688; } 
+        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술 제외 */
+        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; } /* 부분 참여 */
+        .round-tag.special { background-color: #E0F2F1; color: #009688; } /* 강조 */
 
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
         .price-text strong { color: #3182F6; font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace; margin-left: 4px; }
         .btn-send { background-color: #E8F3FF; color: #3182F6; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 700; }
 
-        /* 상세 영수증 */
         .receipt-detail { margin-top: 40px; background-color: #FFF; padding: 25px 20px; position: relative; background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%); background-position: top center; background-size: 20px 20px; background-repeat: repeat-x; padding-top: 40px; }
         .detail-header { text-align: center; font-size: 13px; font-weight: 700; color: #999; margin-bottom: 20px; letter-spacing: 1px; }
         .receipt-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
@@ -51,7 +48,6 @@
 
         .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
         .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; font-size: 14px; }
-        
         #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -88,17 +84,17 @@
         }
 
         function renderPage(data) {
-            // 이름 정규화 (공백 제거)
-            const normalize = (str) => (str || "").replace(/\s/g, "");
+            // 이름 공백제거 및 소문자화 (매칭률 극대화)
+            const normalize = (str) => (str || "").replace(/\s/g, "").toLowerCase();
 
-            // 1. 그룹핑 (Ver 13.0: 카테고리 분석 기반)
+            // 1. 그룹핑 (Ver 14.0: 제외 항목 기반 범용 로직)
             let groups = {};
 
             data.members.forEach(member => {
                 if (member.amount === 0) return;
                 
                 let myName = normalize(member.name);
-                let mySignature = []; // 나의 참여 상태를 기록할 문자열
+                let mySignature = []; 
                 let myTagsData = [];
 
                 if (data.details && Array.isArray(data.details)) {
@@ -106,66 +102,58 @@
                         let title = round.rName || (idx + 1) + "차";
                         title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
 
-                        // ★ [Ver 13.0] 이중 필터링 로직
-                        // 술 그룹 vs 안주 그룹으로 나눕니다.
-                        let alcoholItems = [];
-                        let foodItems = [];
-                        
-                        let ateAlcohol = false;
-                        let ateFood = false;
-                        let hasAlcoholInRound = false;
+                        // 참여 현황 분석
+                        let totalItems = round.items ? round.items.length : 0;
+                        let eatenCount = 0;
+                        let skippedItems = []; // 내가 안 먹은 아이템 리스트
 
-                        if (round.items) {
+                        if (round.items && round.items.length > 0) {
                             round.items.forEach(item => {
-                                let iName = (item.iName || item.name || "").toLowerCase();
-                                // 술 판별 정규식 (매우 강력하게)
-                                let isAlcohol = iName.match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하|막걸리|참이슬|처음처럼|복분자|음료|콜라|사이다/);
-                                
-                                if (isAlcohol) {
-                                    hasAlcoholInRound = true;
-                                    alcoholItems.push(item);
-                                } else {
-                                    foodItems.push(item);
-                                }
-
-                                // 내가 먹었는지 체크
+                                // DB 필드명 방어
                                 let eatersList = item.eaters || item.participants || item.members;
+                                
                                 let didIEat = false;
                                 if (!eatersList) {
-                                    didIEat = true; // 명단 없으면 먹은 거
+                                    // 명단 없으면 = 전체 참여
+                                    didIEat = true;
                                 } else {
+                                    // 명단 있으면 = 내 이름 확인
+                                    // (김철수 == 김 철 수)
                                     didIEat = eatersList.some(e => normalize(e).includes(myName) || myName.includes(normalize(e)));
                                 }
 
                                 if (didIEat) {
-                                    if (isAlcohol) ateAlcohol = true;
-                                    else ateFood = true;
+                                    eatenCount++;
+                                } else {
+                                    // 내가 안 먹은(제외된) 아이템 수집
+                                    skippedItems.push(item.iName || item.name || "");
                                 }
                             });
                         } else {
-                            // 아이템 상세가 없으면 전체 참여로 간주
-                            ateFood = true; 
+                            // 아이템 상세 정보가 없으면, 그냥 전체 참여로 간주
+                            eatenCount = 1; totalItems = 1;
                         }
 
-                        // ★ 상태 결정 (우선순위 중요)
+                        // ★ [Ver 14.0] 상태 결정 로직
                         let status = "FULL";
 
-                        // 1. 아무것도 안 먹었으면 미참여
-                        if (!ateAlcohol && !ateFood) {
-                            status = "NONE";
-                        }
-                        // 2. 술이 있는 라운드인데, 술만 안 먹었으면 -> 술 제외
-                        else if (hasAlcoholInRound && ateFood && !ateAlcohol) {
-                            status = "NO_ALCOHOL";
-                        }
-                        // 3. 밥만 안 먹고 술만 먹었으면 -> (드문 케이스지만 부분참여)
-                        else if (hasAlcoholInRound && !ateFood && ateAlcohol) {
-                            status = "PARTIAL";
-                        }
-                        // 4. 둘 다 먹었지만 모든 메뉴를 먹은 건 아닐 때 (정밀 체크 필요하면 여기서 items length 비교)
-                        else {
-                            // 일단 술+밥 다 건드렸으면 1차로 표시 (가장 일반적)
-                            status = "FULL"; 
+                        if (eatenCount === 0) {
+                            status = "NONE"; // 하나도 안 먹음
+                        } else if (eatenCount < totalItems) {
+                            // 부분 참여 (무언가를 뺐음)
+                            // 뺀 항목 중에 '술'이 있는지 확인 (사용자 니즈 반영)
+                            let hasAlcoholSkipped = skippedItems.some(name => {
+                                let n = name.toLowerCase();
+                                return n.match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하|막걸리|참이슬|처음처럼|복분자/);
+                            });
+
+                            if (hasAlcoholSkipped) {
+                                status = "NO_ALCOHOL"; // 술을 뺐으면 무조건 '술 제외' 태그
+                            } else {
+                                status = "PARTIAL"; // 술 말고 다른 걸 뺐으면 '부분 참여'
+                            }
+                        } else {
+                            status = "FULL"; // 다 먹음
                         }
 
                         mySignature.push(`${idx}:${status}`);
@@ -173,7 +161,7 @@
                     });
                 }
 
-                // 그룹 키 생성 (금액 + 참여 상태가 같아야 묶임)
+                // 그룹 키: 금액 + 참여 상태
                 let groupKey = `${member.amount}_${mySignature.join("|")}`;
 
                 if (!groups[groupKey]) {
@@ -211,16 +199,18 @@
                 group.tagsData.forEach(tag => {
                     let displayTitle = tag.title;
                     if (tag.status === "NONE") {
+                        // 미참여
                         tagsHtml += `<span class="round-tag excluded">${displayTitle}(미참여)</span>`;
                     } else if (tag.status === "NO_ALCOHOL") {
-                        // ★ 여기서 노란 태그가 만들어집니다
+                        // 술 제외 (노란색)
                         tagsHtml += `<span class="round-tag alcohol">${displayTitle}(술 제외)</span>`;
                     } else if (tag.status === "PARTIAL") {
+                        // 부분 참여 (파란색) - 노래방 등
                         tagsHtml += `<span class="round-tag partial">${displayTitle}(부분 참여)</span>`;
                     } else {
-                        // 일반 참여
+                        // 전체 참여
                         let badgeClass = "round-tag";
-                        if(displayTitle.includes("제외")) badgeClass += " special";
+                        if(displayTitle.includes("제외")) badgeClass += " special"; // 제목 자체에 '제외'가 있으면 강조
                         tagsHtml += `<span class="${badgeClass}">${displayTitle}</span>`;
                     }
                 });
@@ -263,7 +253,7 @@
                 });
             }
             html += `
-                <div class="version-info">Ver 13.0 (Category Filtering Logic)</div>
+                <div class="version-info">Ver 14.0 (Universal Exclusion Logic)</div>
                 <div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split</div>
                 </div>`;
 
