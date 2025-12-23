@@ -26,24 +26,22 @@
 
         /* 그룹 카드 */
         .group-card { background-color: #FFF; border-radius: 12px; padding: 20px; margin-bottom: 12px; border: 1px solid #E5E8EB; }
-        .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; }
+        .group-names { font-size: 16px; font-weight: 700; color: #191F28; margin-bottom: 8px; line-height: 1.4; }
 
         /* 태그 스타일 */
         .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
         .round-tag { background-color: #F2F4F6; color: #555; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500; }
         
-        /* 특수 태그: 미참여(취소선), 술제외(노랑), 부분참여(파랑) */
-        .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; }
-        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; }
-        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; }
-        .round-tag.special { background-color: #FFF3E0; color: #FF9800; }
+        .round-tag.excluded { background-color: #FFF0F0; color: #E94848; text-decoration: line-through; opacity: 0.6; } /* 미참여 */
+        .round-tag.partial { background-color: #E8F3FF; color: #3182F6; } /* 부분참여 */
+        .round-tag.alcohol { background-color: #FFF8E1; color: #F57F17; } /* 술제외 */
+        .round-tag.special { background-color: #E0F2F1; color: #009688; } /* 기본참여 */
 
         .action-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #F2F4F6; padding-top: 12px; margin-top: 10px; }
         .price-text { font-size: 14px; color: #333; font-weight: 500; }
         .price-text strong { color: #3182F6; font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace; margin-left: 4px; }
         .btn-send { background-color: #E8F3FF; color: #3182F6; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 700; }
 
-        /* 상세 영수증 */
         .receipt-detail { margin-top: 40px; background-color: #FFF; padding: 25px 20px; position: relative; background-image: linear-gradient(135deg, #f2f4f6 25%, transparent 25%), linear-gradient(225deg, #f2f4f6 25%, transparent 25%); background-position: top center; background-size: 20px 20px; background-repeat: repeat-x; padding-top: 40px; }
         .detail-header { text-align: center; font-size: 13px; font-weight: 700; color: #999; margin-bottom: 20px; letter-spacing: 1px; }
         .receipt-row { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; border-bottom: 1px dotted #EEE; padding-bottom: 4px; }
@@ -52,7 +50,6 @@
 
         .loading { text-align: center; padding: 50px; color: #888; font-size: 14px; }
         .error-msg { text-align: center; padding: 50px; color: #E94848; font-weight: bold; font-size: 14px; }
-        
         #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 99; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -89,17 +86,90 @@
         }
 
         function renderPage(data) {
-            // 1. 그룹화 (금액 기준)
+            // ==========================================
+            // ★ Ver 11.0 핵심: 태그 기반 스마트 그룹핑 알고리즘
+            // ==========================================
             let groups = {};
+            
+            // 이름 정규화 (공백 제거)
+            const normalize = (str) => (str || "").replace(/\s/g, "");
+
             data.members.forEach(member => {
                 if (member.amount === 0) return;
-                let amt = member.amount;
-                // 그룹의 대표자 이름 저장 (이름 매칭용)
-                if (!groups[amt]) groups[amt] = { members: [], sampleName: member.name };
-                groups[amt].members.push(member.name);
+                
+                let myName = normalize(member.name);
+                
+                // 1. 이 사람의 '참여 DNA(Signature)'를 생성합니다.
+                // 예: "1차:참여|2차:술제외|3차:미참여"
+                let participationSignature = [];
+                let tagsData = []; // 나중에 HTML 그릴 때 쓸 데이터 저장
+
+                if (data.details && Array.isArray(data.details)) {
+                    data.details.forEach((round, idx) => {
+                        let title = round.rName || (idx + 1) + "차";
+                        // [ ] 제거, 비용 제거
+                        title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
+
+                        // 참여 로직 분석
+                        let totalItems = round.items ? round.items.length : 0;
+                        let eatenCount = 0;
+                        let missedAlcohol = false;
+
+                        if (round.items) {
+                            round.items.forEach(item => {
+                                // DB 필드 방어 (eaters, participants, members)
+                                let eatersList = item.eaters || item.participants || item.members;
+                                
+                                // 명단 없으면 전체 참여, 있으면 이름 체크
+                                if (!eatersList) {
+                                    eatenCount++;
+                                } else {
+                                    // 이름 매칭 (포함 관계 확인)
+                                    let isIncluded = eatersList.some(e => normalize(e).includes(myName) || myName.includes(normalize(e)));
+                                    if (isIncluded) eatenCount++;
+                                    else {
+                                        // 안 먹은 메뉴가 술인지 확인
+                                        let iName = (item.iName || item.name || "").toLowerCase();
+                                        if (iName.match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로|청하/)) {
+                                            missedAlcohol = true;
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            eatenCount = 1; totalItems = 1; // 상세 없으면 참여
+                        }
+
+                        // 상태 결정 (이 상태가 다르면 그룹이 분리됨)
+                        let status = "FULL";
+                        if (eatenCount === 0) status = "NONE";
+                        else if (eatenCount < totalItems) status = missedAlcohol ? "NO_ALCOHOL" : "PARTIAL";
+
+                        // 시그니처에 추가
+                        participationSignature.push(`${idx}:${status}`);
+                        
+                        // 태그 데이터 저장
+                        tagsData.push({ title, status });
+                    });
+                }
+
+                // 2. 그룹 키 생성: "금액_시그니처"
+                // 금액이 같아도 시그니처가 다르면 다른 그룹이 됨!
+                let groupKey = `${member.amount}_${participationSignature.join("|")}`;
+
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        amount: member.amount,
+                        members: [],
+                        tagsData: tagsData // 이 그룹의 공통 태그 데이터
+                    };
+                }
+                groups[groupKey].members.push(member.name);
             });
 
-            // 헤더
+            // ==========================================
+            // HTML 렌더링
+            // ==========================================
             let html = `
                 <div class="summary-card">
                     <div class="meeting-title">${data.title}</div>
@@ -112,86 +182,36 @@
                 </div>
             `;
 
-            let sortedAmounts = Object.keys(groups).sort((a, b) => b - a);
+            // 금액 큰 순서로 정렬 (Key 분리 후에도 금액순 유지)
+            let sortedKeys = Object.keys(groups).sort((a, b) => groups[b].amount - groups[a].amount);
 
-            // ★ 그룹별 태그 생성 로직 (10차 수정: 강력한 이름 매칭)
-            sortedAmounts.forEach(amt => {
-                let group = groups[amt];
+            sortedKeys.forEach(key => {
+                let group = groups[key];
                 let names = group.members.join(", ");
                 let count = group.members.length;
-                let perPerson = Number(amt).toLocaleString();
+                let perPerson = Number(group.amount).toLocaleString();
                 
+                // 저장된 태그 데이터로 HTML 생성
                 let tagsHtml = "";
-                
-                if (data.details && Array.isArray(data.details)) {
-                    data.details.forEach((round, idx) => {
-                        let title = round.rName || (idx + 1) + "차";
-                        title = title.replace(/[\[\]]/g, "").replace("비용", "").trim();
+                group.tagsData.forEach(tag => {
+                    if (tag.status === "NONE") {
+                        tagsHtml += `<span class="round-tag excluded">${tag.title}(미참여)</span>`;
+                    } else if (tag.status === "NO_ALCOHOL") {
+                        tagsHtml += `<span class="round-tag alcohol">${tag.title}(술 제외)</span>`;
+                    } else if (tag.status === "PARTIAL") {
+                        tagsHtml += `<span class="round-tag partial">${tag.title}(부분 참여)</span>`;
+                    } else {
+                        // 전체 참여
+                        let badgeClass = "round-tag";
+                        if(tag.title.includes("제외")) badgeClass += " special";
+                        tagsHtml += `<span class="${badgeClass}">${tag.title}</span>`;
+                    }
+                });
 
-                        // 참여 여부 판단
-                        let totalItems = round.items ? round.items.length : 0;
-                        let eatenCount = 0;
-                        let missedAlcohol = false;
-
-                        // 이름 매칭용 정규화 함수 (공백제거)
-                        const normalize = (str) => (str || "").replace(/\s/g, "");
-                        const myName = normalize(group.sampleName);
-
-                        if (round.items) {
-                            round.items.forEach(item => {
-                                // DB 필드명 방어: eaters, participants, members 다 체크
-                                let eatersList = item.eaters || item.participants || item.members;
-                                
-                                if (!eatersList) {
-                                    // 명단이 아예 없으면 -> 전체 참여로 간주
-                                    eatenCount++;
-                                } else {
-                                    // 명단이 있으면 -> 내 이름이 있는지 확인 (느슨한 매칭)
-                                    let isIncluded = eatersList.some(e => normalize(e).includes(myName) || myName.includes(normalize(e)));
-                                    
-                                    if (isIncluded) {
-                                        eatenCount++;
-                                    } else {
-                                        // 안 먹었음! -> 술인지 체크
-                                        let iName = (item.iName || item.name || "").toLowerCase();
-                                        if (iName.match(/술|소주|맥주|주류|하이볼|진로|카스|테라|새로/)) {
-                                            missedAlcohol = true;
-                                        }
-                                    }
-                                }
-                            });
-                        } else {
-                            // 아이템 상세가 없으면 그냥 참여
-                            eatenCount = 1;
-                            totalItems = 1;
-                        }
-
-                        // ★ 태그 결정
-                        if (eatenCount === 0) {
-                            // 미참여
-                            tagsHtml += `<span class="round-tag excluded">${title}(미참여)</span>`;
-                        } else if (eatenCount < totalItems) {
-                            // 부분 참여
-                            if (missedAlcohol) {
-                                tagsHtml += `<span class="round-tag alcohol">${title}(술 제외)</span>`;
-                            } else {
-                                tagsHtml += `<span class="round-tag partial">${title}(부분 참여)</span>`;
-                            }
-                        } else {
-                            // 전체 참여
-                            let badgeClass = "round-tag";
-                            if(title.includes("제외")) badgeClass += " special";
-                            tagsHtml += `<span class="${badgeClass}">${title}</span>`;
-                        }
-                    });
-                }
-
-                // 1인당 텍스트 처리
                 let priceLabel = count > 1 ? `1인당 <strong>${perPerson}원</strong>` : `<strong>${perPerson}원</strong>`;
-
                 let bankParam = data.bankName ? `&bank=${data.bankName}` : "";
                 let accountParam = data.accountNumber ? `&accountNo=${data.accountNumber}` : "";
-                let tossLink = `supertoss://send?amount=${amt}${bankParam}${accountParam}`;
+                let tossLink = `supertoss://send?amount=${group.amount}${bankParam}${accountParam}`;
 
                 html += `
                     <div class="group-card">
@@ -225,9 +245,8 @@
                     }
                 });
             }
-            // ★ 버전 확인용 (반영 여부 체크)
             html += `
-                <div class="version-info">Ver 10.0 (Enhanced Tag Logic)</div>
+                <div class="version-info">Ver 11.0 (Smart Grouping Algorithm)</div>
                 <div style="text-align:center; margin-top:10px; font-size:11px; color:#AAA;">Smart Split</div>
                 </div>`;
 
